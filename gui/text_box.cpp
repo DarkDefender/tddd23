@@ -43,6 +43,8 @@ void Text_box::create_bitmap_surf(string str, SDL_Renderer *renderer){
 
 	SDL_SetTextureBlendMode(text, SDL_BLENDMODE_BLEND);
 	SDL_SetRenderTarget(renderer, text);
+    	SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
+    	SDL_RenderClear(renderer);
 
         for (int i = 0; str[i] != '\0'; i++){
                 SDL_Rect dest;

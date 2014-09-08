@@ -80,10 +80,10 @@ int main(int argc, char *argv[]){
 	for (int i=0; i < PSF_GetGlyphTotal(); i++)
 	{
 		//Create a surface of exactly the right size for each glyph
-		SDL_Surface *tmp=SDL_CreateRGBSurface(0,PSF_GetGlyphWidth(),PSF_GetGlyphHeight(),32,0,0,0,0);
+		SDL_Surface *tmp=SDL_CreateRGBSurface(0,PSF_GetGlyphWidth(),PSF_GetGlyphHeight(),32,0xFF000000,0x00FF0000,0x0000FF00,0x000000FF);
 
 		//Read the glyph directly into the surface's memory
-		PSF_ReadGlyph(tmp->pixels,4,0xFFFFFFFF,0x00000000);
+		PSF_ReadGlyph(tmp->pixels,4,0x000000FF,0x00000000);
 
 		//Convert the surface to a texture
 		glyph[i]=SDL_CreateTextureFromSurface(renderer,tmp);
