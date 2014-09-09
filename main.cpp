@@ -24,7 +24,7 @@ void update_screen(SDL_Renderer *renderer, list<Text_box*> game_object_list){
     SDL_RenderClear(renderer);
 
     for (list<Text_box*>::iterator it = game_object_list.begin(); it != game_object_list.end(); it++){
-    	(*it)->render_text("Happ. Hopp, hipp!",renderer);
+    	(*it)->render_text("Happ. Hopp, hipp!");
     }
 
     SDL_RenderPresent(renderer);
@@ -99,6 +99,10 @@ int main(int argc, char *argv[]){
 	// TODO remeber to free this up later
 	Text_box *b1 = new Text_box(10,10,100,50,font);
 	Text_box *b2 = new Text_box(10,40,100,50,glyph);
+
+        // Only need to set renderer one time (shared between objects);
+	b1->set_renderer(renderer);
+
         list<Text_box*> obj_list;
 	obj_list.push_back(b1);
 	obj_list.push_back(b2);

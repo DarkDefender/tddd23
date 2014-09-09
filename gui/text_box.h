@@ -19,14 +19,18 @@ class Text_box {
 	TTF_Font *ttf_font;
 	SDL_Texture **psf_font;
 
-	void create_TTF_surf(string str, SDL_Renderer *renderer);
-        void create_bitmap_surf(string str, SDL_Renderer *renderer);
+        static SDL_Renderer *renderer;
+
+        string text_wrap(string str);
+	void create_TTF_surf(string str);
+        void create_bitmap_surf(string str);
 
 	public:
 	Text_box(uint32_t x, uint32_t y, uint32_t w, uint32_t h, TTF_Font *ttf_font);
 	Text_box(uint32_t x, uint32_t y, uint32_t w, uint32_t h, SDL_Texture **psf_font);
-	void render_text(string str, SDL_Renderer *renderer);
-	void render_text(string str, SDL_Renderer *renderer, uint8_t text_speed);
+	void set_renderer(SDL_Renderer *rend);
+	void render_text(string str);
+	void render_text(string str, uint8_t text_speed);
 };
 
 #endif
