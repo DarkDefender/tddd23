@@ -37,10 +37,6 @@ void Text_box::set_renderer(SDL_Renderer *rend){
 	renderer = rend;
 }
 
-void Text_box::set_text(string text){
-	box_text = text;
-}
-
 bool Text_box::load_font(string font_path){
 	string font_type = font_path.substr(font_path.find_last_of(".") + 1);
 	transform(font_type.begin(), font_type.end(), font_type.begin(), ::tolower);
@@ -216,8 +212,11 @@ void Text_box::create_TTF_surf(string str){
 	SDL_SetRenderTarget(renderer, NULL); //NULL SETS TO DEFAULT
 }
 
-void Text_box::render_text(string str){
-	if (!str.empty()){	
+void Text_box::new_text(string str){
+	if (!str.empty()){
+
+        box_text = str;
+
 		if (texture != NULL){
 			// Free the previous texture
 			SDL_DestroyTexture(texture);
@@ -230,9 +229,16 @@ void Text_box::render_text(string str){
 		} else {
 			create_bitmap_surf(str); 
 		}
-		SDL_RenderCopy(renderer, texture, NULL, &text_rect);
 	}
 }
+
+void Text_box::render_text(){
+	if (texture == NULL){
+		cerr << "Tried to render text_box without texture!\n";
+	}
+	SDL_RenderCopy(renderer, texture, NULL, &text_rect);
+}
+
 void Text_box::render_text(string str, uint8_t text_speed){
 	if (!str.empty()){	
 		SDL_RenderCopy(renderer, texture, NULL, &text_rect);

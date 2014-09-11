@@ -23,7 +23,7 @@ void update_screen(SDL_Renderer *renderer, list<Text_box*> game_object_list){
     SDL_RenderClear(renderer);
 
     for (list<Text_box*>::iterator it = game_object_list.begin(); it != game_object_list.end(); it++){
-    	(*it)->render_text("Happ. Hopp, hipp!");
+    	(*it)->render_text();
     }
 
     SDL_RenderPresent(renderer);
@@ -57,6 +57,9 @@ int main(int argc, char *argv[]){
 	// TODO psf generation will fail if renderer is not set!
 	b1->set_renderer(renderer);
 	Text_box *b2 = new Text_box(10,40,100,50,"../res/fonts/Tewi-normal-11.psf");
+
+    b1->new_text("Hipp. Happ, hopp!");
+    b2->new_text("Hipp. Happ, popp!");
 
 	list<Text_box*> obj_list;
 	obj_list.push_back(b1);

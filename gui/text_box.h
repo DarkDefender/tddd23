@@ -33,9 +33,9 @@ class Text_box {
 	public:
 	Text_box(uint32_t x, uint32_t y, uint32_t w, uint32_t h, string font_path, uint8_t font_size = 10);
     bool load_font(string font_path);
-	void set_text(string text);
 	void set_renderer(SDL_Renderer *rend);
-	void render_text(string str);
+	void render_text();
+	void new_text(string str);
 	void render_text(string str, uint8_t text_speed);
 };
 
