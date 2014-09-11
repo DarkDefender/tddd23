@@ -17,7 +17,7 @@ extern "C" {
 #define	PSF_TYPE_UNKNOWN	4
 
 int	PSF_FindFont(char *codeset,char *fontface, char *fontsize);
-void PSF_OpenFont(char *fname);
+void PSF_OpenFont(const char *fname);
 void PSF_ReadHeader();
 int PSF_GetGlyphSize();
 int PSF_GetGlyphHeight();

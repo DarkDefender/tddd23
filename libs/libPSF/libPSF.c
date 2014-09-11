@@ -76,7 +76,7 @@ int	PSF_FindFont(char *codeset,char *fontface, char *fontsize)
 	return 0;
 }
 
-void PSF_OpenFont(char *fname)
+void PSF_OpenFont(const char *fname)
 {
 	psf_fd=OPEN(fname);
 

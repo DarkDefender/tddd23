@@ -4,7 +4,6 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
-#include "libs/libPSF/PSF.h"
 #include "gui/text_box.h"
 
 #define WIDTH   640
@@ -30,21 +29,6 @@ void update_screen(SDL_Renderer *renderer, list<Text_box*> game_object_list){
     SDL_RenderPresent(renderer);
 }
 
-TTF_Font *ttf_setup(string font_file_name, uint8_t font_size){
-	TTF_Font *font = TTF_OpenFont(font_file_name.c_str(), font_size);
-	//TODO Better handling when font loading fails perhaps?
-	if ( font == NULL ) {
-		cerr << "Couldn't load " << font_size << " pt font from " << font_file_name << ": " << SDL_GetError() << endl;
-		cleanup(2);
-	}
-	TTF_SetFontStyle(font, TTF_STYLE_NORMAL);
-	TTF_SetFontOutline(font, 0);
-	TTF_SetFontKerning(font, 1);
-	TTF_SetFontHinting(font, TTF_HINTING_NORMAL);
-
-	return font;
-}
-
 int main(int argc, char *argv[]){
 	
 	SDL_Window *window;
@@ -53,7 +37,7 @@ int main(int argc, char *argv[]){
 
 	cout << "Hello World!\n";
 
-        // Init the TTF lib
+	// Init the TTF lib
 	if ( TTF_Init() < 0 ) {
 		cerr << "Couldn't initialize TTF: " << SDL_GetError() << endl;
 		SDL_Quit();
@@ -66,48 +50,19 @@ int main(int argc, char *argv[]){
 		cleanup(2);
 	}
 
-	// Init TTF font
-        TTF_Font *font = ttf_setup("../res/fonts/PROBE_10PX_TTF.ttf",10);
-
-        // Init PSF font
-	SDL_Texture *glyph[512];
-
-        PSF_OpenFont("../res/fonts/Tewi-normal-11.psf");
-
-	PSF_ReadHeader();
-
-        //PSF_GetGlyphTotal tells us how many glyphs are in the font
-	for (int i=0; i < PSF_GetGlyphTotal(); i++)
-	{
-		//Create a surface of exactly the right size for each glyph
-		SDL_Surface *tmp=SDL_CreateRGBSurface(0,PSF_GetGlyphWidth(),PSF_GetGlyphHeight(),32,0xFF000000,0x00FF0000,0x0000FF00,0x000000FF);
-
-		//Read the glyph directly into the surface's memory
-		PSF_ReadGlyph(tmp->pixels,4,0x000000FF,0x00000000);
-
-		//Convert the surface to a texture
-		glyph[i]=SDL_CreateTextureFromSurface(renderer,tmp);
-
-		//Free the surface's memory
-		SDL_FreeSurface(tmp);
-	}
-
-	//PSF Font loaded to textures, close the original file
-	PSF_CloseFont();
-
 	// Create test text objects
 	// TODO remeber to free this up later
-	Text_box *b1 = new Text_box(10,10,100,50,font);
-	Text_box *b2 = new Text_box(10,40,100,50,glyph);
-
-        // Only need to set renderer one time (shared between objects);
+	Text_box *b1 = new Text_box(10,10,110,50,"../res/fonts/PROBE_10PX_TTF.ttf");
+	// Only need to set renderer one time (shared between objects)
+	// TODO psf generation will fail if renderer is not set!
 	b1->set_renderer(renderer);
+	Text_box *b2 = new Text_box(10,40,100,50,"../res/fonts/Tewi-normal-11.psf");
 
-        list<Text_box*> obj_list;
+	list<Text_box*> obj_list;
 	obj_list.push_back(b1);
 	obj_list.push_back(b2);
 
-        update_screen(renderer, obj_list);
+	update_screen(renderer, obj_list);
 
 	bool done = false;
 	while ( ! done ) {
@@ -135,10 +90,8 @@ int main(int argc, char *argv[]){
 		}
 	}
 
-	/*
-	   SDL_FreeSurface(text);
-	   TTF_CloseFont(font);  
-	   */
+	// TODO clean up all loaded fonts!
+	//TTF_CloseFont(font);  
 	SDL_Quit();
 
 	return 0;
