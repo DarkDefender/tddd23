@@ -3,6 +3,7 @@
 #include <string>
 #include <algorithm>
 #include <map>
+#include <utility>
 #include <cstring>
 #include <iostream>
 #include <sstream>
@@ -19,11 +20,17 @@ Text_box::Text_box(uint32_t x, uint32_t y, uint32_t w, uint32_t h, string font_p
 	text_rect.w = w;
 	text_rect.h = h;
 	animation_done = true;
+	text_spd = 0;
+	loop_ani = false;
+    loop_pos = 0;
+
 	texture = NULL;
     // size is only used for the ttf font
 	ttf_size = font_size;
 	ttf_font = NULL;
+
 	psf_font = NULL;
+	
 	box_text = "You forgot to add a text!";
 	load_font(font_path);
 }
@@ -32,6 +39,7 @@ Text_box::Text_box(uint32_t x, uint32_t y, uint32_t w, uint32_t h, string font_p
 SDL_Renderer *Text_box::renderer = NULL;
 map<string,TTF_Font *> Text_box::ttf_dict;
 map<string,SDL_Texture **> Text_box::psf_dict;
+map<string,pair<uint8_t,uint8_t>> Text_box::psf_sizes;
 		
 void Text_box::set_renderer(SDL_Renderer *rend){
 	renderer = rend;
@@ -47,6 +55,9 @@ bool Text_box::load_font(string font_path){
         if (psf_dict.count(font_path) > 0){
 			//Only load a font once
 			psf_font = psf_dict[font_path];
+            pair<uint8_t,uint8_t> temp = psf_sizes[font_path];
+			psf_width = temp.first;
+			psf_height = temp.second;
 			return true;
 		}
 
@@ -57,12 +68,15 @@ bool Text_box::load_font(string font_path){
 
         // Create new texture array to strore the glyphs
 		psf_font = new SDL_Texture*[512];
+        
+        psf_width = PSF_GetGlyphWidth();
+		psf_height = PSF_GetGlyphHeight();
 
 		//PSF_GetGlyphTotal tells us how many glyphs are in the font
 		for (int i=0; i < PSF_GetGlyphTotal(); i++)
 		{
 			//Create a surface of exactly the right size for each glyph
-			SDL_Surface *tmp=SDL_CreateRGBSurface(0,PSF_GetGlyphWidth(),PSF_GetGlyphHeight(),32,0xFF000000,0x00FF0000,0x0000FF00,0x000000FF);
+			SDL_Surface *tmp=SDL_CreateRGBSurface(0,psf_width,psf_height,32,0xFF000000,0x00FF0000,0x0000FF00,0x000000FF);
 
 			//Read the glyph directly into the surface's memory
 			PSF_ReadGlyph(tmp->pixels,4,0x000000FF,0x00000000);
@@ -73,6 +87,9 @@ bool Text_box::load_font(string font_path){
 			//Free the surface's memory
 			SDL_FreeSurface(tmp);
 		}
+
+		//Store the width and height for later use
+		psf_sizes[font_path] = make_pair (psf_width,psf_height);
 
 		//PSF Font loaded to textures, close the original file
 		PSF_CloseFont();
@@ -121,14 +138,14 @@ string Text_box::text_wrap(string str){
 		string space = " ";
 		TTF_SizeUTF8(ttf_font, space.c_str(), &space_width, NULL);
 	} else {
-        space_width = PSF_GetGlyphWidth();
+        space_width = psf_width;
 	}
 
 	while(iss >> word) {
 		int word_len = 0;
 		if(bitmap_font){
 			word_len = word.length();
-			lenght += (word_len * PSF_GetGlyphWidth());
+			lenght += (word_len * psf_width);
 		} else {
 			TTF_SizeUTF8(ttf_font, word.c_str(), &word_len, NULL);
 			lenght += word_len;
@@ -163,10 +180,10 @@ void Text_box::create_bitmap_surf(string str){
 			continue;
 		}
 		SDL_Rect dest;
-		dest.x = PSF_GetGlyphWidth()*x;
-		dest.y = PSF_GetGlyphHeight()*y;
-		dest.w=PSF_GetGlyphWidth();
-		dest.h=PSF_GetGlyphHeight();
+		dest.x = psf_width*x;
+		dest.y = psf_height*y;
+		dest.w = psf_width;
+		dest.h = psf_height;
 		SDL_RenderCopy(renderer, psf_font[(unsigned char)str[i]], NULL, &dest);
 		x++;
 	}
@@ -216,6 +233,7 @@ void Text_box::new_text(string str){
 	if (!str.empty()){
 
         box_text = str;
+		loop_pos = 0;
 
 		if (texture != NULL){
 			// Free the previous texture
@@ -239,8 +257,7 @@ void Text_box::render_text(){
 	SDL_RenderCopy(renderer, texture, NULL, &text_rect);
 }
 
-void Text_box::render_text(string str, uint8_t text_speed){
-	if (!str.empty()){	
-		SDL_RenderCopy(renderer, texture, NULL, &text_rect);
-	}
+void Text_box::set_text_speed(uint8_t text_speed, bool loop){
+	text_spd = text_speed;
+	loop_ani = loop;
 }

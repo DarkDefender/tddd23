@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <utility>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 
@@ -19,7 +20,16 @@ class Text_box {
 	uint8_t render_layer;
 	uint8_t ttf_size;
 	TTF_Font *ttf_font;
+
+	uint8_t text_spd;
+	uint8_t loop_ani;
+	uint32_t loop_pos;
+
 	SDL_Texture **psf_font;
+	uint8_t psf_width;
+	uint8_t psf_height;
+	static map<string,pair<uint8_t,uint8_t>> psf_sizes;
+
 	string box_text;
 
 	static SDL_Renderer *renderer;
@@ -34,9 +44,9 @@ class Text_box {
 	Text_box(uint32_t x, uint32_t y, uint32_t w, uint32_t h, string font_path, uint8_t font_size = 10);
     bool load_font(string font_path);
 	void set_renderer(SDL_Renderer *rend);
+	void set_text_speed(uint8_t text_speed, bool loop = false);
 	void render_text();
 	void new_text(string str);
-	void render_text(string str, uint8_t text_speed);
 };
 
 #endif
