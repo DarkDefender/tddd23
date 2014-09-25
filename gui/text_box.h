@@ -47,6 +47,7 @@ class Text_box {
 	void set_text_speed(uint8_t text_speed, bool loop = false);
 	void render_text();
 	void new_text(string str);
+	void set_pos(uint32_t x, uint32_t y);
 };
 
 #endif

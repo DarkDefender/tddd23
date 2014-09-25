@@ -76,13 +76,13 @@ bool Text_box::load_font(string font_path){
 		for (int i=0; i < PSF_GetGlyphTotal(); i++)
 		{
 			//Create a surface of exactly the right size for each glyph
-			SDL_Surface *tmp=SDL_CreateRGBSurface(0,psf_width,psf_height,32,0xFF000000,0x00FF0000,0x0000FF00,0x000000FF);
+			SDL_Surface *tmp = SDL_CreateRGBSurface(0,psf_width,psf_height,32,0xFF000000,0x00FF0000,0x0000FF00,0x000000FF);
 
 			//Read the glyph directly into the surface's memory
 			PSF_ReadGlyph(tmp->pixels,4,0x000000FF,0x00000000);
 
 			//Convert the surface to a texture
-			psf_font[i]=SDL_CreateTextureFromSurface(renderer,tmp);
+			psf_font[i] = SDL_CreateTextureFromSurface(renderer,tmp);
 
 			//Free the surface's memory
 			SDL_FreeSurface(tmp);
@@ -260,4 +260,9 @@ void Text_box::render_text(){
 void Text_box::set_text_speed(uint8_t text_speed, bool loop){
 	text_spd = text_speed;
 	loop_ani = loop;
+}
+
+void Text_box::set_pos(uint32_t x, uint32_t y){
+	text_rect.x = x;
+	text_rect.y = y;
 }

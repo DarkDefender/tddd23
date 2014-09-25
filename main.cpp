@@ -4,8 +4,11 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_image.h>
 #include "gui/text_box.h"
 #include "timer.h"
+
+#include <btBulletDynamicsCommon.h>
 
 const int WIDTH = 640;
 const int HEIGHT = 480;
@@ -16,6 +19,7 @@ using namespace std;
 
 void cleanup(int exitcode){
 	TTF_Quit();
+	IMG_Quit();
 	SDL_Quit();
 	exit(exitcode);
 }
@@ -46,7 +50,14 @@ int main(int argc, char *argv[]){
 		SDL_Quit();
 		return 2;
 	}
-
+    //Initialize PNG loading 
+	int imgFlags = IMG_INIT_PNG; 
+	if( !( IMG_Init( imgFlags ) & imgFlags ) ) {
+		cerr << "SDL_image could not initialize! SDL_image Error:" << IMG_GetError() << endl;
+        TTF_Quit();
+		SDL_Quit();
+		return 2; 
+	}
 	// Create a window
 	if (SDL_CreateWindowAndRenderer(WIDTH, HEIGHT, 0, &window, &renderer) < 0) {
 		cerr << "SDL_CreateWindowAndRenderer() failed: " << SDL_GetError() << endl;
@@ -68,8 +79,50 @@ int main(int argc, char *argv[]){
 	obj_list.push_back(b1);
 	obj_list.push_back(b2);
 
-	update_screen(renderer, obj_list);
 
+	//---- BULLET INIT 
+    // Build the broadphase
+    btBroadphaseInterface* broadphase = new btDbvtBroadphase();
+
+    // Set up the collision configuration and dispatcher
+    btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
+    btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
+
+    // The actual physics solver
+    btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
+
+    // The world.
+    btDiscreteDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
+    dynamicsWorld->setGravity(btVector3(0, -10, 0));
+
+    //---- END BULLET INIT
+
+	// Setup bullet shapes
+
+	btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 1);
+
+	btCollisionShape* fallShape = new btSphereShape(1);
+
+	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, -1, 0)));
+
+	btRigidBody::btRigidBodyConstructionInfo
+		groundRigidBodyCI(0, groundMotionState, groundShape, btVector3(0, 0, 0));
+	btRigidBody* groundRigidBody = new btRigidBody(groundRigidBodyCI);
+	dynamicsWorld->addRigidBody(groundRigidBody);
+
+	btDefaultMotionState* fallMotionState =
+		new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 10, 0)));
+	btScalar mass = 10;
+	btVector3 fallInertia(0, 0, 0);
+	fallShape->calculateLocalInertia(mass, fallInertia);
+	btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass, fallMotionState, fallShape, fallInertia);
+	btRigidBody* fallRigidBody = new btRigidBody(fallRigidBodyCI);
+	dynamicsWorld->addRigidBody(fallRigidBody);
+
+	btVector3 force = btVector3(0, 20, 0);
+	fallRigidBody->applyCentralImpulse(force);
+
+	//Setup timer
     Timer fps_timer;
 	Timer fps_cap_timer;
 	bool done = false;
@@ -93,6 +146,9 @@ int main(int argc, char *argv[]){
 				   break;
 				   */
 				case SDL_KEYDOWN:
+					fallRigidBody->activate(true);
+					fallRigidBody->applyCentralImpulse(force);
+					break;
 				case SDL_QUIT:
 					done = 1;
 					break;
@@ -101,11 +157,10 @@ int main(int argc, char *argv[]){
 			}
 		}
 		//Calculate and correct fps
-		float avg_fps = counted_frames / ( fps_timer.getTicks() / 1000.f );
+		float avg_fps = counted_frames / fps_timer.delta_s();
 		if( avg_fps > 2000000 ){
 			avg_fps = 0;
 		}
-		b2->new_text(to_string(avg_fps));
 
 		update_screen(renderer, obj_list);
         ++counted_frames;
@@ -115,7 +170,36 @@ int main(int argc, char *argv[]){
 		if( frame_ticks < SCREEN_TICKS_PER_FRAME - frame_ticks){
 			SDL_Delay( SCREEN_TICKS_PER_FRAME - frame_ticks );
 		}
+        //update physics
+		dynamicsWorld->stepSimulation(fps_cap_timer.delta_s());
+
+		btTransform trans;
+		fallRigidBody->getMotionState()->getWorldTransform(trans);
+
+		b2->set_pos(10 + trans.getOrigin().getX() * 40,  40 + trans.getOrigin().getY() * 40);
+		b2->new_text("x: " + to_string(trans.getOrigin().getX()) + " y: " + to_string(trans.getOrigin().getY()));
 	}
+
+	//BULLET clean
+
+	dynamicsWorld->removeRigidBody(fallRigidBody);
+	delete fallRigidBody->getMotionState();
+	delete fallRigidBody;
+
+	dynamicsWorld->removeRigidBody(groundRigidBody);
+	delete groundRigidBody->getMotionState();
+	delete groundRigidBody;
+
+
+	delete fallShape;
+
+	delete groundShape;
+    // Clean up behind ourselves like good little programmers
+    delete dynamicsWorld;
+    delete solver;
+    delete dispatcher;
+    delete collisionConfiguration;
+    delete broadphase;
 
 	// TODO clean up all loaded fonts!
 	//TTF_CloseFont(font);  
