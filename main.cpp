@@ -8,6 +8,8 @@
 #include "gui/text_box.h"
 #include "timer.h"
 
+#include "level.h"
+
 #include <btBulletDynamicsCommon.h>
 
 const int WIDTH = 640;
@@ -24,10 +26,12 @@ void cleanup(int exitcode){
 	exit(exitcode);
 }
 
-void update_screen(SDL_Renderer *renderer, list<Text_box*> game_object_list){
+void update_screen(SDL_Renderer *renderer, list<Text_box*> game_object_list, LevelZone *level){
     /* Clear the background to background color */
     SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
     SDL_RenderClear(renderer);
+
+    level->render_layers(renderer);
 
     for (list<Text_box*>::iterator it = game_object_list.begin(); it != game_object_list.end(); it++){
     	(*it)->render_text();
@@ -64,6 +68,9 @@ int main(int argc, char *argv[]){
 		cleanup(2);
 	}
 
+	//TODO use scaling
+    //SDL_RenderSetScale(renderer,1,1);
+
 	// Create test text objects
 	// TODO remeber to free this up later
 	Text_box *b1 = new Text_box(10,10,110,50,"../res/fonts/PROBE_10PX_TTF.ttf");
@@ -79,6 +86,8 @@ int main(int argc, char *argv[]){
 	obj_list.push_back(b1);
 	obj_list.push_back(b2);
 
+    //Load level
+    LevelZone *level = new LevelZone("untitled.tmx", renderer ); 
 
 	//---- BULLET INIT 
     // Build the broadphase
@@ -162,7 +171,7 @@ int main(int argc, char *argv[]){
 			avg_fps = 0;
 		}
 
-		update_screen(renderer, obj_list);
+		update_screen(renderer, obj_list, level);
         ++counted_frames;
 
 		//Cap framerate

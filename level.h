@@ -27,6 +27,7 @@ class LevelZone {
 	public:
 	LevelZone(string level_zone_file, SDL_Renderer *renderer);
 	vector<SDL_Texture *> get_layers(SDL_Renderer *renderer);
+	void render_layers(SDL_Renderer *renderer);
 	void del_images();
 	void del_layers();
 	~LevelZone();

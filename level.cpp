@@ -51,7 +51,7 @@ void Level::draw_level(){
 LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 	zone_name = level_zone_file;
 	//Only have one copy of the same zone loaded
-	if (zones.count(level_zone_file) < 1){
+	if (zones.count(level_zone_file) == 0){
 		//TODO handle faliures
 		pugi::xml_parse_result result = zones[level_zone_file].load_file(level_zone_file.c_str());
 	}
@@ -63,10 +63,10 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 	zone_h = atoi(map.attribute("height").value());
 
 	// Load layer data
-	vector<vector<unsigned int>> zone_tiles;
 	for (pugi::xml_node node = map.child("layer"); node; node = node.next_sibling("layer")) {
 		//load in the level tile numbers
 		unsigned int i = 1;
+		vector<vector<unsigned int>> zone_tiles;
 		vector<unsigned int> tile_vec;
 		for( pugi::xml_node tiles = node.child("data").first_child(); tiles; tiles = tiles.next_sibling()) {
 			if( i == zone_w){
@@ -93,7 +93,8 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 			cur_tile.rect.y = 0;
 			string img_path;
             string node_name( node2.name() );
-			if( node_name.compare("tile") ){
+			// Zero if string is equal
+			if( node_name.compare("tile") == 0 ){
 				img_path = node2.child("image").attribute("source").value();
 				cur_tile.rect.w = atoi(node2.child("image").attribute("width").value());
 				cur_tile.rect.h = atoi(node2.child("image").attribute("height").value());
@@ -107,7 +108,7 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 			SDL_Texture * texture;
 
 			//Have we already loaded this texture?
-			if (images.count(img_path) < 1){
+			if (images.count(img_path) > 0){
 				texture = images[img_path];
 			} else {
 				texture = loadTexture(img_path, renderer);
@@ -115,8 +116,8 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 			}
 
 			if(cur_tile.rect.w > tile_w || cur_tile.rect.h > tile_h){
-				for (int x = 0; (cur_tile.rect.w / (tile_w * (1+x))) >= 1; x++){
-					for (int y = 0; (cur_tile.rect.h / (tile_h * (1+y))) >= 1; y++){
+				for (int y = 0; (cur_tile.rect.h / (tile_h * (1+y))) >= 1; y++){
+					for (int x = 0; (cur_tile.rect.w / (tile_w * (1+x))) >= 1; x++){
                         Tile sub_tile;
 						sub_tile.texture = texture;
 						sub_tile.rect.w = tile_w;
@@ -139,12 +140,12 @@ vector<SDL_Texture *> LevelZone::get_layers(SDL_Renderer *renderer){
 	if( level_zone_layers.empty() ){
 		for (unsigned int i = 0; i < level_tiles.size(); i++){
 			SDL_Texture *texture;
-			texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, zone_tile_w * zone_w, zone_tile_w * zone_w);
+			texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, zone_tile_w * zone_w, zone_tile_h * zone_h);
 			SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 			SDL_SetRenderTarget(renderer, texture);
 			SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
 			SDL_RenderClear(renderer);
-
+            
 			for (unsigned int y = 0; y < level_tiles[i].size(); y++){
 				for (unsigned int x = 0; x < level_tiles[i][y].size(); x++){
                     unsigned int index = level_tiles[i][y][x];
@@ -154,16 +155,31 @@ vector<SDL_Texture *> LevelZone::get_layers(SDL_Renderer *renderer){
 					}
 					SDL_Rect dest =  tile_tex[index -1].rect;
 					dest.x = x * zone_tile_w;
-					dest.y = y * zone_tile_h;
+					//Because we want the origin of the tile to be at the bottom left of the tile, we have to add an offset here
+					dest.y = (y + 1) * zone_tile_h - tile_tex[index -1].rect.h;
 					SDL_RenderCopy(renderer, tile_tex[index -1].texture, &tile_tex[index -1].rect, &dest);
 				}
 			}
 			level_zone_layers.push_back(texture);
+			// Change the target back to the default and then render the aux
+			SDL_SetRenderTarget(renderer, NULL); //NULL SETS TO DEFAULT
 		}
 	}
-	// Change the target back to the default and then render the aux
-	SDL_SetRenderTarget(renderer, NULL); //NULL SETS TO DEFAULT
 	return level_zone_layers;
+}
+
+void LevelZone::render_layers(SDL_Renderer *renderer){
+	if( level_zone_layers.empty() ){
+		get_layers(renderer);
+	} 
+	SDL_Rect dest;
+	dest.x = 0;
+	dest.y = 0;
+	dest.w = zone_tile_w * zone_w;
+	dest.h = zone_tile_h * zone_h;
+	for (auto it = level_zone_layers.begin(); it != level_zone_layers.end(); ++it){
+		SDL_RenderCopy(renderer, *it, NULL, &dest);
+	}
 }
 
 //TODO only clean up images that are not needed for the next level if needed
