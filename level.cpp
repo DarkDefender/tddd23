@@ -7,7 +7,6 @@
 #include <cstring>
 #include <vector>
 #include <map>
-#include <stdlib.h>
 
 using namespace std; 
 
@@ -23,8 +22,8 @@ Level::Level(string level_file){
 
     pugi::xml_node map = level.child("map");
 
-	level_w = atoi(map.attribute("width").value());
-	level_h = atoi(map.attribute("height").value());
+	level_w = map.attribute("width").as_int();
+	level_h = map.attribute("height").as_int();
 	//load in the level tile numbers
 	/*
 	int i = 1;
@@ -48,6 +47,50 @@ void Level::draw_level(){
 
 }
 
+void LevelZone::parse_collison_obj( pugi::xml_node node, int tile_id ){
+	for (pugi::xml_node object = node.child("object"); object; object = object.next_sibling("object")) {
+		
+		int origin_x, origin_y;
+		SDL_Point coord;
+		vector<SDL_Point> coord_vec;
+		origin_x = object.attribute("x").as_int();
+		origin_y = object.attribute("y").as_int();
+		pugi::xml_node coll_shape = object.first_child();
+		string node_name( coll_shape.name() );
+		//Is this a polyline?
+		if( node_name.compare("polyline") == 0 ) {
+			char *pch;
+			int i = 0;
+			string str( coll_shape.attribute("points").value() );
+			char chars[str.size() +1];
+
+			strcpy( chars, str.c_str() );
+			//split the string at space and comma char
+			pch = strtok( chars, ", " );
+			while (pch != NULL) {
+				if ( i % 2 ){
+					coord.y = stoi(pch) + origin_y;
+					coord_vec.push_back(coord);
+				} else {
+					coord.x = stoi(pch) + origin_x;
+				}
+				pch = strtok (NULL, ", ");
+				i++;
+			}
+		} else {
+			cout << "Unknown coll_shape: " << node_name << endl;
+		}
+
+		//Is this a zone coll_shape or a tile coll_shape?
+		if(tile_id == 0){
+            //This is a zone shape
+            zone_coll.push_back(coord_vec);
+		} else {
+            tile_tex[tile_id - 1].coll.push_back(coord_vec);
+		}
+	}
+}
+
 LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 	zone_name = level_zone_file;
 	//Only have one copy of the same zone loaded
@@ -57,10 +100,10 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 	}
 	pugi::xml_node map = zones[zone_name].child("map");
 
-	zone_tile_w = atoi(map.attribute("tilewidth").value());
-	zone_tile_h = atoi(map.attribute("tileheight").value());
-	zone_w = atoi(map.attribute("width").value());
-	zone_h = atoi(map.attribute("height").value());
+	zone_tile_w = map.attribute("tilewidth").as_int();
+	zone_tile_h = map.attribute("tileheight").as_int();
+	zone_w = map.attribute("width").as_int();
+	zone_h = map.attribute("height").as_int();
 
 	// Load layer data
 	for (pugi::xml_node node = map.child("layer"); node; node = node.next_sibling("layer")) {
@@ -75,7 +118,7 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 				i = 1;
 				continue;
 			} else {
-				tile_vec.push_back(atoi(tiles.attribute("gid").value()));
+				tile_vec.push_back(tiles.attribute("gid").as_int());
 			}
 			i++;
 		}
@@ -84,25 +127,35 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 
     // Load all images required for this zone
 	for (pugi::xml_node node = map.child("tileset"); node; node = node.next_sibling("tileset")) {
-		int tile_w, tile_h;
-		tile_w = atoi(node.attribute("tilewidth").value());
-		tile_h = atoi(node.attribute("tileheight").value());
+		int tile_w, tile_h, first_id;
+		tile_w = node.attribute("tilewidth").as_int();
+		tile_h = node.attribute("tileheight").as_int();
+		first_id = node.attribute("firstgid").as_int();
 		for( pugi::xml_node node2 = node.first_child(); node2; node2 = node2.next_sibling()) {
 			Tile cur_tile;
 			cur_tile.rect.x = 0;
 			cur_tile.rect.y = 0;
 			string img_path;
             string node_name( node2.name() );
-			// Zero if string is equal
-			if( node_name.compare("tile") == 0 ){
+			// Zero if string is equal, and check if image node exists
+			if( node_name.compare("tile") == 0 && node2.child("image") ){
 				img_path = node2.child("image").attribute("source").value();
-				cur_tile.rect.w = atoi(node2.child("image").attribute("width").value());
-				cur_tile.rect.h = atoi(node2.child("image").attribute("height").value());
-			} else {
+				cur_tile.rect.w = node2.child("image").attribute("width").as_int();
+				cur_tile.rect.h = node2.child("image").attribute("height").as_int();
+			} else if( node_name.compare("image") == 0 ) {
 				// This is a tileset with just one image
 				img_path = node2.attribute("source").value();
-				cur_tile.rect.w = atoi(node2.attribute("width").value());
-				cur_tile.rect.h = atoi(node2.attribute("height").value());
+				cur_tile.rect.w = node2.attribute("width").as_int();
+				cur_tile.rect.h = node2.attribute("height").as_int();
+			} else {
+				//No image to load
+				
+				//Is there a collision shape for this tile?
+				if ( node2.child("objectgroup") ){
+					parse_collison_obj(node2.child("objectgroup"), first_id + node2.attribute("id").as_int());
+				}
+				//We must have already loaded the image for this tile...
+				continue;
 			}
             
 			SDL_Texture * texture;
@@ -115,6 +168,7 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 				images[img_path] = texture;
 			}
 
+			//Split a image into small tiles if it truly is a tileset
 			if(cur_tile.rect.w > tile_w || cur_tile.rect.h > tile_h){
 				for (int y = 0; (cur_tile.rect.h / (tile_h * (1+y))) >= 1; y++){
 					for (int x = 0; (cur_tile.rect.w / (tile_w * (1+x))) >= 1; x++){
@@ -127,13 +181,26 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 						tile_tex.push_back(sub_tile);
 					}
 				}
+			//The tile is the whole image
 			} else {
 				cur_tile.texture = texture;
 				tile_tex.push_back(cur_tile);
+				//Is there a collision shape for this tile?
+				if ( node2.child("objectgroup") ){
+					parse_collison_obj(node2.child("objectgroup"), first_id + node2.attribute("id").as_int());
+				}
 			}
 		}
 	}
-
+    //Load all objects for this zone
+	for (pugi::xml_node node = map.child("objectgroup"); node; node = node.next_sibling("objectgroup")) {
+		string node_name( node.name() );
+		if( node_name.compare("collision") ){
+			parse_collison_obj(node, 0);
+		} else {
+			continue;
+		}
+	}
 }
 
 vector<SDL_Texture *> LevelZone::get_layers(SDL_Renderer *renderer){
@@ -168,9 +235,51 @@ vector<SDL_Texture *> LevelZone::get_layers(SDL_Renderer *renderer){
 	return level_zone_layers;
 }
 
+SDL_Texture *LevelZone::get_coll_layer(SDL_Renderer *renderer){
+	SDL_Texture *texture;
+	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, zone_tile_w * zone_w, zone_tile_h * zone_h);
+	SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+	SDL_SetRenderTarget(renderer, texture);
+	SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
+	SDL_RenderClear(renderer);
+	SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
+	for (unsigned int i = 0; i < level_tiles.size(); i++){
+		for (unsigned int y = 0; y < level_tiles[i].size(); y++){
+			for (unsigned int x = 0; x < level_tiles[i][y].size(); x++){
+				unsigned int index = level_tiles[i][y][x];
+				if (index == 0) {
+					//Empty tile
+					continue;
+				}
+				SDL_Rect dest =  tile_tex[index -1].rect;
+				dest.x = x * zone_tile_w;
+				//Because we want the origin of the tile to be at the bottom left of the tile, we have to add an offset here
+				dest.y = (y + 1) * zone_tile_h - tile_tex[index -1].rect.h;
+				for(unsigned int p = 0; p < tile_tex[index -1].coll.size(); p++){
+					for(unsigned int j = 0; j < tile_tex[index -1].coll[p].size() - 1; j++){
+                        SDL_RenderDrawLine(renderer, tile_tex[index -1].coll[p][j].x + dest.x, tile_tex[index -1].coll[p][j].y + dest.y,
+													 tile_tex[index -1].coll[p][j+1].x + dest.x, tile_tex[index -1].coll[p][j+1].y + dest.y);
+					}
+				}
+			}
+		}
+	}
+	//Draw zone collision layer
+	for(unsigned int p = 0; p < zone_coll.size(); p++){
+		for(unsigned int j = 0; j < zone_coll[p].size() - 1; j++){
+			SDL_RenderDrawLine(renderer, zone_coll[p][j].x, zone_coll[p][j].y,
+										 zone_coll[p][j+1].x, zone_coll[p][j+1].y);
+		}
+	}
+	level_zone_layers.push_back(texture);
+	// Change the target back to the default and then render the aux
+	SDL_SetRenderTarget(renderer, NULL); //NULL SETS TO DEFAULT
+	return texture;
+}
 void LevelZone::render_layers(SDL_Renderer *renderer){
 	if( level_zone_layers.empty() ){
 		get_layers(renderer);
+		get_coll_layer(renderer);
 	} 
 	SDL_Rect dest;
 	dest.x = 0;
