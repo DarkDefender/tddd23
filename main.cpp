@@ -16,6 +16,8 @@ const int WIDTH = 640;
 const int HEIGHT = 480;
 const int SCREEN_FPS = 60;
 const int SCREEN_TICKS_PER_FRAME = 1000 / SCREEN_FPS;
+int off_x = 0;
+int off_y = 0;
 
 using namespace std;
 
@@ -31,7 +33,7 @@ void update_screen(SDL_Renderer *renderer, list<Text_box*> game_object_list, Lev
     SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
     SDL_RenderClear(renderer);
 
-    level->render_layers(renderer);
+    level->render_layers(renderer, off_x, off_y);
 
     for (list<Text_box*>::iterator it = game_object_list.begin(); it != game_object_list.end(); it++){
     	(*it)->render_text();
@@ -145,15 +147,10 @@ int main(int argc, char *argv[]){
 
 		while( SDL_PollEvent( &event ) != 0 ){  
 			switch (event.type) {
-				/*
 				   case SDL_MOUSEBUTTONDOWN:
-				   scene.messageRect.x = event.button.x - text->w/2;
-				   scene.messageRect.y = event.button.y - text->h/2;
-				   scene.messageRect.w = text->w;
-				   scene.messageRect.h = text->h;
-				   draw_scene(renderer, &scene);
+				   off_x = - event.button.x;
+				   off_y = - event.button.y;
 				   break;
-				   */
 				case SDL_KEYDOWN:
 					fallRigidBody->activate(true);
 					fallRigidBody->applyCentralImpulse(force);

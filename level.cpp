@@ -235,14 +235,8 @@ vector<SDL_Texture *> LevelZone::get_layers(SDL_Renderer *renderer){
 	return level_zone_layers;
 }
 
-SDL_Texture *LevelZone::get_coll_layer(SDL_Renderer *renderer){
-	SDL_Texture *texture;
-	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, zone_tile_w * zone_w, zone_tile_h * zone_h);
-	SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-	SDL_SetRenderTarget(renderer, texture);
-	SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
-	SDL_RenderClear(renderer);
-	SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
+vector<vector<SDL_Point>> LevelZone::get_coll_vec(){
+	vector<vector<SDL_Point>> shape_vec;
 	for (unsigned int i = 0; i < level_tiles.size(); i++){
 		for (unsigned int y = 0; y < level_tiles[i].size(); y++){
 			for (unsigned int x = 0; x < level_tiles[i][y].size(); x++){
@@ -256,19 +250,50 @@ SDL_Texture *LevelZone::get_coll_layer(SDL_Renderer *renderer){
 				//Because we want the origin of the tile to be at the bottom left of the tile, we have to add an offset here
 				dest.y = (y + 1) * zone_tile_h - tile_tex[index -1].rect.h;
 				for(unsigned int p = 0; p < tile_tex[index -1].coll.size(); p++){
-					for(unsigned int j = 0; j < tile_tex[index -1].coll[p].size() - 1; j++){
-                        SDL_RenderDrawLine(renderer, tile_tex[index -1].coll[p][j].x + dest.x, tile_tex[index -1].coll[p][j].y + dest.y,
-													 tile_tex[index -1].coll[p][j+1].x + dest.x, tile_tex[index -1].coll[p][j+1].y + dest.y);
+					vector<SDL_Point> point_vec;
+					for(unsigned int j = 0; j < tile_tex[index -1].coll[p].size(); j++){
+						SDL_Point point;
+						point.x = tile_tex[index -1].coll[p][j].x + dest.x;
+						point.y = tile_tex[index -1].coll[p][j].y + dest.y;
+						point_vec.push_back(point);
 					}
+					shape_vec.push_back(point_vec);
 				}
 			}
 		}
 	}
 	//Draw zone collision layer
 	for(unsigned int p = 0; p < zone_coll.size(); p++){
-		for(unsigned int j = 0; j < zone_coll[p].size() - 1; j++){
-			SDL_RenderDrawLine(renderer, zone_coll[p][j].x, zone_coll[p][j].y,
-										 zone_coll[p][j+1].x, zone_coll[p][j+1].y);
+		vector<SDL_Point> point_vec;
+		for(unsigned int j = 0; j < zone_coll[p].size(); j++){
+			SDL_Point point;
+			point.x = zone_coll[p][j].x;
+			point.y = zone_coll[p][j].y;
+
+			point_vec.push_back(point);
+		}
+		shape_vec.push_back(point_vec);
+	}
+	return shape_vec;
+}
+
+SDL_Texture *LevelZone::get_coll_layer(SDL_Renderer *renderer){
+	SDL_Texture *texture;
+	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, zone_tile_w * zone_w, zone_tile_h * zone_h);
+	SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+	SDL_SetRenderTarget(renderer, texture);
+	SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
+	SDL_RenderClear(renderer);
+	SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
+	
+	//Get all collsion shapes
+	vector<vector<SDL_Point>> all_coll = get_coll_vec();
+	
+	//Draw zone collision layer
+	for(unsigned int p = 0; p < all_coll.size(); p++){
+		for(unsigned int j = 0; j < all_coll[p].size() - 1; j++){
+			SDL_RenderDrawLine(renderer, all_coll[p][j].x, all_coll[p][j].y,
+										 all_coll[p][j+1].x, all_coll[p][j+1].y);
 		}
 	}
 	level_zone_layers.push_back(texture);
@@ -276,14 +301,15 @@ SDL_Texture *LevelZone::get_coll_layer(SDL_Renderer *renderer){
 	SDL_SetRenderTarget(renderer, NULL); //NULL SETS TO DEFAULT
 	return texture;
 }
-void LevelZone::render_layers(SDL_Renderer *renderer){
+
+void LevelZone::render_layers(SDL_Renderer *renderer, int off_x, int off_y){
 	if( level_zone_layers.empty() ){
 		get_layers(renderer);
 		get_coll_layer(renderer);
 	} 
 	SDL_Rect dest;
-	dest.x = 0;
-	dest.y = 0;
+	dest.x = off_x;
+	dest.y = off_y;
 	dest.w = zone_tile_w * zone_w;
 	dest.h = zone_tile_h * zone_h;
 	for (auto it = level_zone_layers.begin(); it != level_zone_layers.end(); ++it){
