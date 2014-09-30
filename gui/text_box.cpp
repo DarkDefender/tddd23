@@ -179,11 +179,7 @@ void Text_box::create_bitmap_surf(string str){
 			x = 0;
 			continue;
 		}
-		SDL_Rect dest;
-		dest.x = psf_width*x;
-		dest.y = psf_height*y;
-		dest.w = psf_width;
-		dest.h = psf_height;
+		SDL_Rect dest = { psf_width*x, psf_height*y, psf_width, psf_height };
 		SDL_RenderCopy(renderer, psf_font[(unsigned char)str[i]], NULL, &dest);
 		x++;
 	}
@@ -208,15 +204,10 @@ void Text_box::create_TTF_surf(string str){
 
 	while(getline(str_stream,str)){
 
-		SDL_Rect dest;
-
 		SDL_Surface *tmp_surf = TTF_RenderUTF8_Solid(ttf_font, str.c_str(), black);
 		SDL_Texture *text_line = SDL_CreateTextureFromSurface(renderer, tmp_surf);
 
-		dest.x = 0;
-		dest.y = line_h * i;
-		dest.w = tmp_surf->w;
-		dest.h = tmp_surf->h;
+		SDL_Rect dest = { 0, line_h * i, tmp_surf->w, tmp_surf->h };
 
 		SDL_RenderCopy(renderer,text_line, NULL, &dest);
 

@@ -42,6 +42,33 @@ void update_screen(SDL_Renderer *renderer, list<Text_box*> game_object_list, Lev
     SDL_RenderPresent(renderer);
 }
 
+btTriangleMesh* create_terrain(vector<vector<SDL_Point>> zone_coll){
+	btTriangleMesh* trimesh = new btTriangleMesh();
+	for(unsigned int p = 0; p < zone_coll.size(); p++){
+		for(unsigned int j = 0; j < zone_coll[p].size() - 1; j++){
+			//convert the 2d line to a 3d plane
+			btScalar p1_x = zone_coll[p][j].x;
+			btScalar p1_y = zone_coll[p][j].y;
+			btScalar p2_x = zone_coll[p][j+1].x;
+			btScalar p2_y = zone_coll[p][j+1].y;
+
+			p1_x = p1_x / 40.0f;
+			p1_y = p1_y / 40.0f;
+			p2_x = p2_x / 40.0f;
+			p2_y = p2_y / 40.0f;
+
+			trimesh->addTriangle( btVector3(p1_x, p1_y , -1),
+								  btVector3(p1_x, p1_y , 1),
+								  btVector3(p2_x, p2_y , 1));
+
+			trimesh->addTriangle( btVector3(p2_x, p2_y , 1),
+								  btVector3(p2_x, p2_y , -1),
+								  btVector3(p1_x, p1_y , -1));
+		}
+	}
+	return trimesh;
+}
+
 int main(int argc, char *argv[]){
 	
 	SDL_Window *window;
@@ -122,16 +149,38 @@ int main(int argc, char *argv[]){
 	dynamicsWorld->addRigidBody(groundRigidBody);
 
 	btDefaultMotionState* fallMotionState =
-		new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 10, 0)));
+		new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(6, 10, 0)));
 	btScalar mass = 10;
 	btVector3 fallInertia(0, 0, 0);
 	fallShape->calculateLocalInertia(mass, fallInertia);
 	btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass, fallMotionState, fallShape, fallInertia);
 	btRigidBody* fallRigidBody = new btRigidBody(fallRigidBodyCI);
+
+	// Limit movement to the x,y axis. And limit rotation around the z axis
+	fallRigidBody->setLinearFactor(btVector3(1,1,0));
+	fallRigidBody->setAngularFactor(btVector3(0,0,1));
+
 	dynamicsWorld->addRigidBody(fallRigidBody);
 
-	btVector3 force = btVector3(0, 20, 0);
-	fallRigidBody->applyCentralImpulse(force);
+    // Setup the world shape
+	// TODO init the whole world
+    btTriangleMesh* trimesh = create_terrain(level->get_coll_vec());
+
+	btCollisionShape *mTriMeshShape = new btBvhTriangleMeshShape(trimesh,true);
+
+	btDefaultMotionState* levelMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+
+	btRigidBody::btRigidBodyConstructionInfo
+		levelRigidBodyCI(0, levelMotionState, mTriMeshShape, btVector3(0, 0, 0));
+	btRigidBody* levelRigidBody = new btRigidBody(levelRigidBodyCI);
+	dynamicsWorld->addRigidBody(levelRigidBody);
+
+    // Nudge the circle
+	btVector3 up = btVector3(0, 20, 0);
+	btVector3 down = btVector3(0, -20, 0);
+	btVector3 left = btVector3(-20, 0, 0);
+	btVector3 right = btVector3(20, 20, 0);
+	//fallRigidBody->applyCentralImpulse(force);
 
 	//Setup timer
     Timer fps_timer;
@@ -147,13 +196,23 @@ int main(int argc, char *argv[]){
 
 		while( SDL_PollEvent( &event ) != 0 ){  
 			switch (event.type) {
-				   case SDL_MOUSEBUTTONDOWN:
-				   off_x = - event.button.x;
-				   off_y = - event.button.y;
-				   break;
+				case SDL_MOUSEBUTTONDOWN:
+					off_x = - event.button.x;
+					off_y = - event.button.y;
+					break;
 				case SDL_KEYDOWN:
+					if(event.key.repeat){
+						// We don't want to handle key repeats
+						break;
+					}
 					fallRigidBody->activate(true);
-					fallRigidBody->applyCentralImpulse(force);
+					switch (event.key.keysym.sym)
+					{
+						case SDLK_LEFT:  fallRigidBody->applyCentralImpulse(left); break;
+						case SDLK_RIGHT: fallRigidBody->applyCentralImpulse(right); break;
+						case SDLK_UP:    fallRigidBody->applyCentralImpulse(up); break;
+						case SDLK_DOWN:  fallRigidBody->applyCentralImpulse(down); break;
+					}
 					break;
 				case SDL_QUIT:
 					done = 1;
@@ -182,7 +241,7 @@ int main(int argc, char *argv[]){
 		btTransform trans;
 		fallRigidBody->getMotionState()->getWorldTransform(trans);
 
-		b2->set_pos(10 + trans.getOrigin().getX() * 40,  40 + trans.getOrigin().getY() * 40);
+		b2->set_pos(trans.getOrigin().getX() * 40,  trans.getOrigin().getY() * 40);
 		b2->new_text("x: " + to_string(trans.getOrigin().getX()) + " y: " + to_string(trans.getOrigin().getY()));
 	}
 
@@ -196,10 +255,17 @@ int main(int argc, char *argv[]){
 	delete groundRigidBody->getMotionState();
 	delete groundRigidBody;
 
+	dynamicsWorld->removeRigidBody(levelRigidBody);
+	delete levelRigidBody->getMotionState();
+	delete levelRigidBody;
 
 	delete fallShape;
 
 	delete groundShape;
+
+	delete mTriMeshShape;
+
+	delete trimesh;
     // Clean up behind ourselves like good little programmers
     delete dynamicsWorld;
     delete solver;
