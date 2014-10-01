@@ -13,7 +13,8 @@ endif( NOT ZLIB_FOUND )
 add_subdirectory(libs)
 add_subdirectory(gui)
 
-add_executable(${PROJECT_NAME} main.cpp timer.cpp level.cpp sdl_h_func.cpp)
+add_executable(${PROJECT_NAME} main.cpp timer.cpp level.cpp sdl_h_func.cpp
+	obj.cpp)
 
 include(FindPkgConfig)
 
