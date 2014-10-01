@@ -133,7 +133,8 @@ int main(int argc, char *argv[]){
     btDiscreteDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
     
 	//Default gravity is -10, but here the the game world has the y axis inverted to grav is +10
-	dynamicsWorld->setGravity(btVector3(0, 10, 0));
+	btVector3 grav_vec = btVector3(0, 10, 0);
+	dynamicsWorld->setGravity(grav_vec);
 
     //---- END BULLET INIT
 
@@ -216,6 +217,10 @@ int main(int argc, char *argv[]){
 						case SDLK_RIGHT: fallRigidBody->applyCentralImpulse(right); break;
 						case SDLK_UP:    fallRigidBody->applyCentralImpulse(up); break;
 						case SDLK_DOWN:  fallRigidBody->applyCentralImpulse(down); break;
+						case SDLK_SPACE:
+										 grav_vec = grav_vec.rotate(btVector3(0,0,1),0.2);
+										 dynamicsWorld->setGravity(grav_vec);
+										 break;
 					}
 					break;
 				case SDL_QUIT:

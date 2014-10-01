@@ -2,7 +2,7 @@
 #define TEXT_BOX
 
 #include <string>
-#include <map>
+#include <unordered_map>
 #include <utility>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -28,13 +28,13 @@ class Text_box {
 	SDL_Texture **psf_font;
 	uint8_t psf_width;
 	uint8_t psf_height;
-	static map<string,pair<uint8_t,uint8_t>> psf_sizes;
+	static unordered_map<string,pair<uint8_t,uint8_t>> psf_sizes;
 
 	string box_text;
 
 	static SDL_Renderer *renderer;
-    static map<string,TTF_Font *> ttf_dict;
-    static map<string,SDL_Texture **> psf_dict;
+    static unordered_map<string,TTF_Font *> ttf_dict;
+    static unordered_map<string,SDL_Texture **> psf_dict;
 
 	string text_wrap(string str);
 	void create_TTF_surf(string str);

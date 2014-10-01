@@ -6,12 +6,12 @@
 #include <iostream>
 #include <cstring>
 #include <vector>
-#include <map>
+#include <unordered_map>
 
 using namespace std; 
 
-map<string,pugi::xml_document> LevelZone::zones;
-map<string,SDL_Texture *> LevelZone::images;
+unordered_map<string,pugi::xml_document> LevelZone::zones;
+unordered_map<string,SDL_Texture *> LevelZone::images;
 
 Level::Level(string level_file){
 	pugi::xml_document level;

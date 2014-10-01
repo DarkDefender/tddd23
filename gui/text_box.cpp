@@ -2,7 +2,7 @@
 
 #include <string>
 #include <algorithm>
-#include <map>
+#include <unordered_map>
 #include <utility>
 #include <cstring>
 #include <iostream>
@@ -41,9 +41,9 @@ Text_box::~Text_box(){
 
 // TODO perhaps remove the set renderer function and just init this one instead
 SDL_Renderer *Text_box::renderer = NULL;
-map<string,TTF_Font *> Text_box::ttf_dict;
-map<string,SDL_Texture **> Text_box::psf_dict;
-map<string,pair<uint8_t,uint8_t>> Text_box::psf_sizes;
+unordered_map<string,TTF_Font *> Text_box::ttf_dict;
+unordered_map<string,SDL_Texture **> Text_box::psf_dict;
+unordered_map<string,pair<uint8_t,uint8_t>> Text_box::psf_sizes;
 		
 void Text_box::set_renderer(SDL_Renderer *rend){
 	renderer = rend;

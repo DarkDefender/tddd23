@@ -7,7 +7,7 @@
 
 #include <iostream>
 #include <vector>
-#include <map>
+#include <unordered_map>
 
 using namespace std;
 
@@ -25,8 +25,8 @@ class LevelZone {
 
 	string zone_name;
 	unsigned int zone_tile_w, zone_tile_h, zone_w, zone_h;
-	static map<string,pugi::xml_document> zones;
-	static map<string,SDL_Texture *> images;
+	static unordered_map<string,pugi::xml_document> zones;
+	static unordered_map<string,SDL_Texture *> images;
 	vector<SDL_Texture *> level_zone_layers;
 
 	void parse_collison_obj(pugi::xml_node node, int tile_id);
