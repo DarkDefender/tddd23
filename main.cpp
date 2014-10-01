@@ -22,6 +22,8 @@ int off_x = 0;
 int off_y = 0;
 float angle = 0;
 
+SDL_Texture *texture = NULL;
+
 using namespace std;
 
 void cleanup(int exitcode){
@@ -32,19 +34,28 @@ void cleanup(int exitcode){
 }
 
 void update_screen(SDL_Renderer *renderer, list<Text_box*> text_object_list, LevelZone *level, list<GameObject*> obj_list){
-    /* Clear the background to background color */
-    SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-    SDL_RenderClear(renderer);
+	if ( texture == NULL ){
+		//TODO calc the exact needed size
+		texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 800, 800);
+		SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+	}
 
-    level->render_layers(renderer, off_x, off_y, angle);
+	SDL_SetRenderTarget(renderer, texture);
+	/* Clear the background to background color */
+	SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+	SDL_RenderClear(renderer);
 
-    for (list<GameObject*>::iterator it = obj_list.begin(); it != obj_list.end(); it++){
-    	(*it)->render_obj(off_x, off_y);
-    }
+	level->render_layers(renderer, off_x+80, off_y+160);
 
-    for (list<Text_box*>::iterator it = text_object_list.begin(); it != text_object_list.end(); it++){
-    	(*it)->render_text();
-    }
+	for (list<GameObject*>::iterator it = obj_list.begin(); it != obj_list.end(); it++){
+		(*it)->render_obj(off_x+80, off_y+160);
+	}
+	SDL_SetRenderTarget(renderer, NULL);
+	SDL_Rect dest = {-80,-160,800,800};
+	SDL_RenderCopyEx(renderer, texture, NULL, &dest, angle, NULL, SDL_FLIP_NONE);
+	for (list<Text_box*>::iterator it = text_object_list.begin(); it != text_object_list.end(); it++){
+		(*it)->render_text();
+	}
 
     SDL_RenderPresent(renderer);
 }
@@ -179,11 +190,14 @@ int main(int argc, char *argv[]){
 	player->set_phys_world(dynamicsWorld);
 	//Only need to call init for the first object created after renderer and phys world has been set
 	player->init();
+		
+	GameObject *box = new GameObject("box", "box.png", 10, 10, 10);
 
-	btRigidBody *fallRigidBody = player->get_body();
+	btRigidBody *fallRigidBody = box->get_body();
 
 	list<GameObject*> obj_list;
 	obj_list.push_back(player);
+	obj_list.push_back(box);
 
     // Nudge the circle
 	btVector3 up = btVector3(0, -20, 0);

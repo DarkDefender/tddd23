@@ -287,17 +287,12 @@ void Text_box::new_text(string str){
 }
 
 //rot_angle is 0 if not set!
-void Text_box::render_text(float rot_angle){
+void Text_box::render_text(){
 	if (texture == NULL){
 		cerr << "Tried to render text_box without texture!\n";
 		return;
 	}
-	if(rot_angle){
-		SDL_Point center = { 0, 0 };
-		SDL_RenderCopyEx(renderer, texture, NULL, &text_rect, rot_angle, &center, SDL_FLIP_NONE);
-	} else {
-		SDL_RenderCopy(renderer, texture, NULL, &text_rect);
-	}
+	SDL_RenderCopy(renderer, texture, NULL, &text_rect);
 }
 
 void Text_box::set_text_speed(uint8_t text_speed, bool loop){

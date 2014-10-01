@@ -90,13 +90,14 @@ void GameObject::render_obj(int off_x, int off_y){
 	btTransform trans;
 	phys_body->getMotionState()->getWorldTransform(trans);
 
-	btVector3 angle_vec;
-	QuaternionToEulerXYZ(trans.getRotation(),angle_vec);
-	float angle = (angle_vec.getZ() / 3.14) * 360.0f;
+	btVector3 rot_vec;
+	QuaternionToEulerXYZ(trans.getRotation(),rot_vec);
+	float rot = (rot_vec.getZ() / 3.14) * 180.0f;
 
 	dest.x = off_x - 40 + trans.getOrigin().getX() * 40;
 	dest.y = off_y - 40 + trans.getOrigin().getY() * 40;
 	dest.w = 80;
 	dest.h = 80;
-	SDL_RenderCopyEx(renderer, texture, NULL, &dest, angle, NULL, SDL_FLIP_NONE);
+
+	SDL_RenderCopyEx(renderer, texture, NULL, &dest, rot, NULL, SDL_FLIP_NONE);
 }
