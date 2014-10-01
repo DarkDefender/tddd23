@@ -10,6 +10,8 @@
 
 #include "level.h"
 
+#include "obj.h"
+
 #include <btBulletDynamicsCommon.h>
 
 const int WIDTH = 640;
@@ -18,6 +20,7 @@ const int SCREEN_FPS = 60;
 const int SCREEN_TICKS_PER_FRAME = 1000 / SCREEN_FPS;
 int off_x = 0;
 int off_y = 0;
+float angle = 0;
 
 using namespace std;
 
@@ -28,14 +31,18 @@ void cleanup(int exitcode){
 	exit(exitcode);
 }
 
-void update_screen(SDL_Renderer *renderer, list<Text_box*> game_object_list, LevelZone *level){
+void update_screen(SDL_Renderer *renderer, list<Text_box*> text_object_list, LevelZone *level, list<GameObject*> obj_list){
     /* Clear the background to background color */
     SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
     SDL_RenderClear(renderer);
 
-    level->render_layers(renderer, off_x, off_y);
+    level->render_layers(renderer, off_x, off_y, angle);
 
-    for (list<Text_box*>::iterator it = game_object_list.begin(); it != game_object_list.end(); it++){
+    for (list<GameObject*>::iterator it = obj_list.begin(); it != obj_list.end(); it++){
+    	(*it)->render_obj(off_x, off_y);
+    }
+
+    for (list<Text_box*>::iterator it = text_object_list.begin(); it != text_object_list.end(); it++){
     	(*it)->render_text();
     }
 
@@ -111,9 +118,9 @@ int main(int argc, char *argv[]){
 	b1->new_text("Hipp. Happ, hopp!");
     b2->new_text("Hipp. Happ, popp!");
 
-	list<Text_box*> obj_list;
-	obj_list.push_back(b1);
-	obj_list.push_back(b2);
+	list<Text_box*> text_list;
+	text_list.push_back(b1);
+	text_list.push_back(b2);
 
     //Load level
     LevelZone *level = new LevelZone("untitled.tmx", renderer ); 
@@ -151,20 +158,6 @@ int main(int argc, char *argv[]){
 	btRigidBody* groundRigidBody = new btRigidBody(groundRigidBodyCI);
 	dynamicsWorld->addRigidBody(groundRigidBody);
 
-	btDefaultMotionState* fallMotionState =
-		new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(6, 10, 0)));
-	btScalar mass = 10;
-	btVector3 fallInertia(0, 0, 0);
-	fallShape->calculateLocalInertia(mass, fallInertia);
-	btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass, fallMotionState, fallShape, fallInertia);
-	btRigidBody* fallRigidBody = new btRigidBody(fallRigidBodyCI);
-
-	// Limit movement to the x,y axis. And limit rotation around the z axis
-	fallRigidBody->setLinearFactor(btVector3(1,1,0));
-	fallRigidBody->setAngularFactor(btVector3(0,0,1));
-
-	dynamicsWorld->addRigidBody(fallRigidBody);
-
     // Setup the world shape
 	// TODO init the whole world
     btTriangleMesh* trimesh = create_terrain(level->get_coll_vec());
@@ -177,6 +170,20 @@ int main(int argc, char *argv[]){
 		levelRigidBodyCI(0, levelMotionState, mTriMeshShape, btVector3(0, 0, 0));
 	btRigidBody* levelRigidBody = new btRigidBody(levelRigidBodyCI);
 	dynamicsWorld->addRigidBody(levelRigidBody);
+
+    //Create a game object
+	//TODO remember to free/delete this later
+	GameObject *player = new GameObject("circle", "circle.png", 10, 6, 10);
+	//Only need to set renderer and phys world once.
+	player->set_renderer(renderer);
+	player->set_phys_world(dynamicsWorld);
+	//Only need to call init for the first object created after renderer and phys world has been set
+	player->init();
+
+	btRigidBody *fallRigidBody = player->get_body();
+
+	list<GameObject*> obj_list;
+	obj_list.push_back(player);
 
     // Nudge the circle
 	btVector3 up = btVector3(0, -20, 0);
@@ -191,6 +198,8 @@ int main(int argc, char *argv[]){
 	bool done = false;
     int counted_frames = 0;
 	fps_timer.start();
+
+	bool rota = false;
 
 	while ( ! done ) {
 
@@ -217,10 +226,7 @@ int main(int argc, char *argv[]){
 						case SDLK_RIGHT: fallRigidBody->applyCentralImpulse(right); break;
 						case SDLK_UP:    fallRigidBody->applyCentralImpulse(up); break;
 						case SDLK_DOWN:  fallRigidBody->applyCentralImpulse(down); break;
-						case SDLK_SPACE:
-										 grav_vec = grav_vec.rotate(btVector3(0,0,1),0.2);
-										 dynamicsWorld->setGravity(grav_vec);
-										 break;
+						case SDLK_SPACE: rota = !rota; break;
 					}
 					break;
 				case SDL_QUIT:
@@ -236,7 +242,7 @@ int main(int argc, char *argv[]){
 			avg_fps = 0;
 		}
 
-		update_screen(renderer, obj_list, level);
+		update_screen(renderer, text_list, level, obj_list);
         ++counted_frames;
 
 		//Cap framerate
@@ -244,24 +250,32 @@ int main(int argc, char *argv[]){
 		if( frame_ticks < SCREEN_TICKS_PER_FRAME - frame_ticks){
 			SDL_Delay( SCREEN_TICKS_PER_FRAME - frame_ticks );
 		}
+
+        //Rotate the world 4 degree per sec
+		if(rota){
+			grav_vec = grav_vec.rotate(btVector3(0,0,1),0.07*fps_cap_timer.delta_s());
+
+			up = up.rotate(btVector3(0,0,1),0.07*fps_cap_timer.delta_s());
+			down = down.rotate(btVector3(0,0,1),0.07*fps_cap_timer.delta_s());
+			left = left.rotate(btVector3(0,0,1),0.07*fps_cap_timer.delta_s());
+			right = right.rotate(btVector3(0,0,1),0.07*fps_cap_timer.delta_s());
+			angle -= 4 * fps_cap_timer.delta_s();
+			dynamicsWorld->setGravity(grav_vec);
+		}
         //update physics
 		dynamicsWorld->stepSimulation(fps_cap_timer.delta_s());
 
 		btTransform trans;
 		fallRigidBody->getMotionState()->getWorldTransform(trans);
 
-        off_x = -trans.getOrigin().getX() * 20;
-		off_y = -trans.getOrigin().getY() * 20;
+        off_x = -trans.getOrigin().getX() * 40 + WIDTH/2;
+		off_y = -trans.getOrigin().getY() * 40 + HEIGHT/2;
 
 		b2->set_pos(off_x + trans.getOrigin().getX() * 40, off_y + trans.getOrigin().getY() * 40);
 		b2->new_text("x: " + to_string(trans.getOrigin().getX()) + " y: " + to_string(trans.getOrigin().getY()));
 	}
 
 	//BULLET clean
-
-	dynamicsWorld->removeRigidBody(fallRigidBody);
-	delete fallRigidBody->getMotionState();
-	delete fallRigidBody;
 
 	dynamicsWorld->removeRigidBody(groundRigidBody);
 	delete groundRigidBody->getMotionState();

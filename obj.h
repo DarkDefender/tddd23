@@ -5,6 +5,7 @@
 #include <btBulletDynamicsCommon.h>
 #include <unordered_map>
 #include "sdl_h_func.h"
+#include <math.h> 
 
 class GameObject {
 	btRigidBody* phys_body;
@@ -25,7 +26,10 @@ class GameObject {
 	void init();
 	void set_renderer(SDL_Renderer *new_renderer);
 	void set_phys_world(btDiscreteDynamicsWorld* world);
-	void render_obj();
+	void render_obj(int off_x, int off_y);
+
+    void QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler);
+
 	btRigidBody *get_body();
 };
 

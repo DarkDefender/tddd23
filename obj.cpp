@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include "sdl_h_func.h"
 #include "obj.h"
+#include <math.h>  
 
 unordered_map<string,btCollisionShape*> GameObject::obj_coll_shape;
 btDiscreteDynamicsWorld* GameObject::phys_world = NULL;
@@ -71,16 +72,27 @@ btRigidBody *GameObject::get_body(){
 	return phys_body;
 }
 
-void GameObject::render_obj(){
+void GameObject::QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler)
+{
+   float w=quat.getW();   float x=quat.getX();   float y=quat.getY();   float z=quat.getZ();
+   double sqw = w*w; double sqx = x*x; double sqy = y*y; double sqz = z*z;
+   euler.setZ((atan2(2.0 * (x*y + z*w),(sqx - sqy - sqz + sqw))));
+   euler.setX((atan2(2.0 * (y*z + x*w),(-sqx - sqy + sqz + sqw))));
+   euler.setY((asin(-2.0 * (x*z - y*w))));
+}
+
+void GameObject::render_obj(int off_x, int off_y){
 	SDL_Rect dest;
 	btTransform trans;
 	phys_body->getMotionState()->getWorldTransform(trans);
 
-	float angle = trans.getRotation().getAngle();
+	btVector3 angle_vec;
+	QuaternionToEulerXYZ(trans.getRotation(),angle_vec);
+	float angle = (angle_vec.getZ() / 3.14) * 360.0f;
 
-	dest.x = trans.getOrigin().getX() * 40;
-	dest.y = trans.getOrigin().getY() * 40;
-	dest.w = 40;
-	dest.h = 40;
+	dest.x = off_x - 40 + trans.getOrigin().getX() * 40;
+	dest.y = off_y - 40 + trans.getOrigin().getY() * 40;
+	dest.w = 80;
+	dest.h = 80;
 	SDL_RenderCopyEx(renderer, texture, NULL, &dest, angle, NULL, SDL_FLIP_NONE);
 }

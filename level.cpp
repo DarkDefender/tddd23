@@ -302,7 +302,7 @@ SDL_Texture *LevelZone::get_coll_layer(SDL_Renderer *renderer){
 	return texture;
 }
 
-void LevelZone::render_layers(SDL_Renderer *renderer, int off_x, int off_y){
+void LevelZone::render_layers(SDL_Renderer *renderer, int off_x, int off_y, float angle){
 	if( level_zone_layers.empty() ){
 		get_layers(renderer);
 		get_coll_layer(renderer);
@@ -313,7 +313,12 @@ void LevelZone::render_layers(SDL_Renderer *renderer, int off_x, int off_y){
 	dest.w = zone_tile_w * zone_w;
 	dest.h = zone_tile_h * zone_h;
 	for (auto it = level_zone_layers.begin(); it != level_zone_layers.end(); ++it){
-		SDL_RenderCopy(renderer, *it, NULL, &dest);
+		if(angle){
+			SDL_Point center = { -off_x + 320, -off_y + 240};
+			SDL_RenderCopyEx(renderer, *it, NULL, &dest, angle, &center, SDL_FLIP_NONE);
+		} else {
+			SDL_RenderCopy(renderer, *it, NULL, &dest);
+		}
 	}
 }
 
