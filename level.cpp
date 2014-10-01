@@ -58,7 +58,7 @@ void LevelZone::parse_collison_obj( pugi::xml_node node, int tile_id ){
 		pugi::xml_node coll_shape = object.first_child();
 		string node_name( coll_shape.name() );
 		//Is this a polyline?
-		if( node_name.compare("polyline") == 0 ) {
+		if( node_name == "polyline") {
 			char *pch;
 			int i = 0;
 			string str( coll_shape.attribute("points").value() );
@@ -137,12 +137,12 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 			cur_tile.rect.y = 0;
 			string img_path;
             string node_name( node2.name() );
-			// Zero if string is equal, and check if image node exists
-			if( node_name.compare("tile") == 0 && node2.child("image") ){
+			// If this is a tile node, we must check if image node exists
+			if( node_name == "tile" && node2.child("image") ){
 				img_path = node2.child("image").attribute("source").value();
 				cur_tile.rect.w = node2.child("image").attribute("width").as_int();
 				cur_tile.rect.h = node2.child("image").attribute("height").as_int();
-			} else if( node_name.compare("image") == 0 ) {
+			} else if( node_name == "image" ) {
 				// This is a tileset with just one image
 				img_path = node2.attribute("source").value();
 				cur_tile.rect.w = node2.attribute("width").as_int();
@@ -194,8 +194,8 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 	}
     //Load all objects for this zone
 	for (pugi::xml_node node = map.child("objectgroup"); node; node = node.next_sibling("objectgroup")) {
-		string node_name( node.name() );
-		if( node_name.compare("collision") ){
+		string node_name( node.attribute("name").value() );
+		if( node_name == "collision" ){
 			parse_collison_obj(node, 0);
 		} else {
 			continue;

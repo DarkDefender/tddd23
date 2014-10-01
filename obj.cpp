@@ -15,7 +15,11 @@ GameObject::GameObject( string body_type, string tile_set, uint8_t health, uint3
 	spawn_y = y;
 	if(obj_coll_shape.count(body_type) == 0){
 		//TODO add proper shape creation based on string
+		if(body_type == "box"){
+			obj_coll_shape[body_type] = new btBoxShape(btVector3(1,1,1));
+		} else {
 		obj_coll_shape[body_type] = new btSphereShape(1);
+		}
 	}
 	body_shape = obj_coll_shape[body_type];
 	obj_name = tile_set;
