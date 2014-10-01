@@ -131,7 +131,9 @@ int main(int argc, char *argv[]){
 
     // The world.
     btDiscreteDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
-    dynamicsWorld->setGravity(btVector3(0, -10, 0));
+    
+	//Default gravity is -10, but here the the game world has the y axis inverted to grav is +10
+	dynamicsWorld->setGravity(btVector3(0, 10, 0));
 
     //---- END BULLET INIT
 
@@ -176,8 +178,8 @@ int main(int argc, char *argv[]){
 	dynamicsWorld->addRigidBody(levelRigidBody);
 
     // Nudge the circle
-	btVector3 up = btVector3(0, 20, 0);
-	btVector3 down = btVector3(0, -20, 0);
+	btVector3 up = btVector3(0, -20, 0);
+	btVector3 down = btVector3(0, 20, 0);
 	btVector3 left = btVector3(-20, 0, 0);
 	btVector3 right = btVector3(20, 20, 0);
 	//fallRigidBody->applyCentralImpulse(force);
@@ -197,8 +199,10 @@ int main(int argc, char *argv[]){
 		while( SDL_PollEvent( &event ) != 0 ){  
 			switch (event.type) {
 				case SDL_MOUSEBUTTONDOWN:
+				    /*
 					off_x = - event.button.x;
 					off_y = - event.button.y;
+					*/
 					break;
 				case SDL_KEYDOWN:
 					if(event.key.repeat){
@@ -241,7 +245,10 @@ int main(int argc, char *argv[]){
 		btTransform trans;
 		fallRigidBody->getMotionState()->getWorldTransform(trans);
 
-		b2->set_pos(trans.getOrigin().getX() * 40,  trans.getOrigin().getY() * 40);
+        off_x = -trans.getOrigin().getX() * 20;
+		off_y = -trans.getOrigin().getY() * 20;
+
+		b2->set_pos(off_x + trans.getOrigin().getX() * 40, off_y + trans.getOrigin().getY() * 40);
 		b2->new_text("x: " + to_string(trans.getOrigin().getX()) + " y: " + to_string(trans.getOrigin().getY()));
 	}
 

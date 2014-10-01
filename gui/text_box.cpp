@@ -35,6 +35,10 @@ Text_box::Text_box(uint32_t x, uint32_t y, uint32_t w, uint32_t h, string font_p
 	load_font(font_path);
 }
 
+Text_box::~Text_box(){
+	SDL_DestroyTexture(texture);
+}
+
 // TODO perhaps remove the set renderer function and just init this one instead
 SDL_Renderer *Text_box::renderer = NULL;
 map<string,TTF_Font *> Text_box::ttf_dict;
@@ -220,6 +224,46 @@ void Text_box::create_TTF_surf(string str){
 	SDL_SetRenderTarget(renderer, NULL); //NULL SETS TO DEFAULT
 }
 
+void Text_box::create_text_shadow(bool outline){
+	SDL_Texture *text_shadow = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, text_rect.w, text_rect.h);
+	SDL_SetTextureBlendMode(text_shadow, SDL_BLENDMODE_BLEND);
+
+    SDL_Rect dest = { 1, 1, text_rect.w, text_rect.h };
+
+	SDL_SetRenderTarget(renderer, text_shadow);
+	SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
+	SDL_RenderClear(renderer);  
+
+	if(outline){
+		for(int i = -1; i < 2; i++){
+			for(int j = -1; j < 2; j++){
+				dest.x = i;
+				dest.y = j;
+
+				SDL_RenderCopy(renderer,texture, NULL, &dest);
+			}
+		}
+	} else {
+		SDL_RenderCopy(renderer,texture, NULL, &dest);
+	}
+
+	SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_ADD);  
+	SDL_RenderFillRect(renderer, NULL);
+
+	//Reset the blendmode
+	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);  
+
+	SDL_RenderCopy(renderer,texture, NULL, NULL);
+
+	SDL_SetRenderTarget(renderer, NULL); //NULL SETS TO DEFAULT
+
+	//Free the old texture
+	SDL_DestroyTexture(texture);
+
+	texture = text_shadow;
+}
+
 void Text_box::new_text(string str){
 	if (!str.empty()){
 
@@ -238,6 +282,7 @@ void Text_box::new_text(string str){
 		} else {
 			create_bitmap_surf(str); 
 		}
+		create_text_shadow(false);
 	}
 }
 
