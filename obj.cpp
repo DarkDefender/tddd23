@@ -11,6 +11,7 @@ SDL_Renderer* GameObject::renderer = NULL;
 
 GameObject::GameObject( string body_type, string tile_set, uint8_t health, uint32_t x, uint32_t y ){
 	inited = false;
+	phys_body = NULL;
 	spawn_x = x;
 	spawn_y = y;
 	if(obj_coll_shape.count(body_type) == 0){
@@ -24,7 +25,7 @@ GameObject::GameObject( string body_type, string tile_set, uint8_t health, uint3
 	body_shape = obj_coll_shape[body_type];
 	obj_name = tile_set;
 
-	if(renderer != NULL && phys_body != NULL){
+	if(renderer != NULL && phys_world != NULL){
       //We have set all everything required to init!
 	  init();
 	}
@@ -74,6 +75,62 @@ void GameObject::set_phys_world(btDiscreteDynamicsWorld* world){
 
 btRigidBody *GameObject::get_body(){
 	return phys_body;
+}
+
+class ClosestNotMeSweep : public btCollisionWorld::ClosestConvexResultCallback
+{
+	public:
+		ClosestNotMeSweep (btRigidBody* me, btVector3 from, btVector3 to) : btCollisionWorld::ClosestConvexResultCallback(from,to)
+	{
+		m_me = me;
+	}
+
+		virtual btScalar addSingleResult(btCollisionWorld::LocalConvexResult& convexResult,bool normalInWorldSpace)
+		{
+			if (convexResult.m_hitCollisionObject == m_me)
+				return 1.0;
+
+			return ClosestConvexResultCallback::addSingleResult (convexResult, normalInWorldSpace);
+		}
+	protected:
+		btRigidBody* m_me;
+};
+
+bool GameObject::can_jump(){
+		btSphereShape cameraSphere(0.2f);
+        btTransform pos_to, pos_from;
+        phys_body->getMotionState()->getWorldTransform(pos_from);
+		pos_to.setIdentity();
+		pos_to.setOrigin(btVector3(0,0.8f,0) + pos_from.getOrigin());
+
+		ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
+
+		phys_world->convexSweepTest(&cameraSphere, pos_from, pos_to, cb);
+		if (cb.hasHit())
+		{
+			return true;
+		} else {
+			return false;
+		}
+}
+
+bool GameObject::can_jump_static(){
+		btSphereShape cameraSphere(0.2f);
+        btTransform pos_to, pos_from;
+        phys_body->getMotionState()->getWorldTransform(pos_from);
+		pos_to.setIdentity();
+		pos_to.setOrigin(btVector3(0,0.8f,0) + pos_from.getOrigin());
+
+		btCollisionWorld::ClosestConvexResultCallback cb( pos_from.getOrigin(), pos_to.getOrigin() );
+		cb.m_collisionFilterMask = btBroadphaseProxy::StaticFilter;
+
+		phys_world->convexSweepTest(&cameraSphere, pos_from, pos_to, cb);
+		if (cb.hasHit())
+		{
+			return true;
+		} else {
+			return false;
+		}
 }
 
 void GameObject::QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler)

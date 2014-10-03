@@ -28,6 +28,8 @@ class GameObject {
 	void set_phys_world(btDiscreteDynamicsWorld* world);
 	void render_obj(int off_x, int off_y);
 
+	bool can_jump();
+	bool can_jump_static();
     void QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler);
 
 	btRigidBody *get_body();

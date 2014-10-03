@@ -193,7 +193,7 @@ int main(int argc, char *argv[]){
 		
 	GameObject *box = new GameObject("box", "box.png", 10, 10, 10);
 
-	btRigidBody *fallRigidBody = box->get_body();
+	btRigidBody *fallRigidBody = player->get_body();
 
 	list<GameObject*> obj_list;
 	obj_list.push_back(player);
@@ -285,8 +285,14 @@ int main(int argc, char *argv[]){
         off_x = -trans.getOrigin().getX() * 40 + WIDTH/2;
 		off_y = -trans.getOrigin().getY() * 40 + HEIGHT/2;
 
+		if( player->can_jump() ){
+           b2->new_text("Can jump!");
+		} else {
+           b2->new_text("Can not");
+		}
+	
 		b2->set_pos(off_x + trans.getOrigin().getX() * 40, off_y + trans.getOrigin().getY() * 40);
-		b2->new_text("x: " + to_string(trans.getOrigin().getX()) + " y: " + to_string(trans.getOrigin().getY()));
+		//b2->new_text("x: " + to_string(trans.getOrigin().getX()) + " y: " + to_string(trans.getOrigin().getY()));
 	}
 
 	//BULLET clean
