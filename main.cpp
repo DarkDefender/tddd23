@@ -22,6 +22,8 @@ int off_x = 0;
 int off_y = 0;
 float angle = 0;
 
+const float SCALE_FACTOR = 80.0f;
+
 SDL_Texture *texture = NULL;
 
 using namespace std;
@@ -71,10 +73,10 @@ btTriangleMesh* create_terrain(vector<vector<SDL_Point>> zone_coll){
 			btScalar p2_x = zone_coll[p][j+1].x;
 			btScalar p2_y = zone_coll[p][j+1].y;
 
-			p1_x = p1_x / 40.0f;
-			p1_y = p1_y / 40.0f;
-			p2_x = p2_x / 40.0f;
-			p2_y = p2_y / 40.0f;
+			p1_x /= SCALE_FACTOR;
+			p1_y /= SCALE_FACTOR;
+			p2_x /= SCALE_FACTOR;
+			p2_y /= SCALE_FACTOR;
 
 			trimesh->addTriangle( btVector3(p1_x, p1_y , -1),
 								  btVector3(p1_x, p1_y , 1),
@@ -296,8 +298,8 @@ int main(int argc, char *argv[]){
 		btTransform trans;
 		fallRigidBody->getMotionState()->getWorldTransform(trans);
 
-        o_vec_x[o] = -trans.getOrigin().getX() * 40 + WIDTH/2;
-		o_vec_y[o] = -trans.getOrigin().getY() * 40 + HEIGHT/2;
+        o_vec_x[o] = -trans.getOrigin().getX() * SCALE_FACTOR + WIDTH/2;
+		o_vec_y[o] = -trans.getOrigin().getY() * SCALE_FACTOR + HEIGHT/2;
         
 		o++;
 		if( o > 14 ){
@@ -314,7 +316,7 @@ int main(int argc, char *argv[]){
         off_x /= 15;
         off_y /= 15;
 
-		b2->set_pos(off_x + trans.getOrigin().getX() * 40, off_y + trans.getOrigin().getY() * 40);
+		b2->set_pos(off_x + trans.getOrigin().getX() * SCALE_FACTOR, off_y + trans.getOrigin().getY() * SCALE_FACTOR);
 		b2->new_text("fric: " + to_string(fallRigidBody->getFriction()) + " jump: " + to_string(player->can_jump()));
 	}
 
