@@ -265,7 +265,7 @@ void Text_box::create_text_shadow(bool outline){
 }
 
 void Text_box::new_text(string str){
-	if (!str.empty()){
+	if (!str.empty() && str != box_text){
 
         box_text = str;
 		loop_pos = 0;

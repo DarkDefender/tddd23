@@ -49,6 +49,7 @@ void update_screen(SDL_Renderer *renderer, list<Text_box*> text_object_list, Lev
 
 	for (list<GameObject*>::iterator it = obj_list.begin(); it != obj_list.end(); it++){
 		(*it)->render_obj(off_x+80, off_y+160);
+		(*it)->update();
 	}
 	SDL_SetRenderTarget(renderer, NULL);
 	SDL_Rect dest = {-80,-160,800,800};
@@ -184,7 +185,7 @@ int main(int argc, char *argv[]){
 
     //Create a game object
 	//TODO remember to free/delete this later
-	GameObject *player = new GameObject("circle", "circle.png", 10, 6, 10);
+	GameObject *player = new GameObject("circle", "circle.png", 10, 6, 10, true);
 	//Only need to set renderer and phys world once.
 	player->set_renderer(renderer);
 	player->set_phys_world(dynamicsWorld);
@@ -201,9 +202,10 @@ int main(int argc, char *argv[]){
 
     // Nudge the circle
 	btVector3 up = btVector3(0, -20, 0);
-	btVector3 down = btVector3(0, 20, 0);
+	btVector3 down = btVector3(0, 0, 20);
 	btVector3 left = btVector3(-20, 0, 0);
-	btVector3 right = btVector3(20, 20, 0);
+	btVector3 right = btVector3(20, 0, 0);
+	//fallRigidBody->activate(true);
 	//fallRigidBody->applyCentralImpulse(force);
 
 	//Setup timer
@@ -214,6 +216,14 @@ int main(int argc, char *argv[]){
 	fps_timer.start();
 
 	bool rota = false;
+
+    float f = 0.0f;
+
+	int o = 0;
+	vector<float> o_vec_x;
+	vector<float> o_vec_y;
+    o_vec_x.resize(15);
+    o_vec_y.resize(15);
 
 	while ( ! done ) {
 
@@ -233,14 +243,22 @@ int main(int argc, char *argv[]){
 						// We don't want to handle key repeats
 						break;
 					}
-					fallRigidBody->activate(true);
 					switch (event.key.keysym.sym)
 					{
-						case SDLK_LEFT:  fallRigidBody->applyCentralImpulse(left); break;
-						case SDLK_RIGHT: fallRigidBody->applyCentralImpulse(right); break;
-						case SDLK_UP:    fallRigidBody->applyCentralImpulse(up); break;
-						case SDLK_DOWN:  fallRigidBody->applyCentralImpulse(down); break;
+						case SDLK_LEFT:  player->set_move_dir(left); break;
+						case SDLK_RIGHT: player->set_move_dir(right); break;
+						case SDLK_UP:    player->jump(); break;
+						case SDLK_DOWN:  f += 0.5f; fallRigidBody->setFriction(f); break;
+						//case SDLK_SPACE: f -= 0.5f; fallRigidBody->setFriction(f); break;
 						case SDLK_SPACE: rota = !rota; break;
+					}
+					break;
+ 				case SDL_KEYUP:
+					switch (event.key.keysym.sym)
+					{
+						case SDLK_LEFT:  player->set_move_dir(-left); break;
+						case SDLK_RIGHT: player->set_move_dir(-right); break;
+						//case SDLK_SPACE: rota = !rota; break;
 					}
 					break;
 				case SDL_QUIT:
@@ -269,10 +287,6 @@ int main(int argc, char *argv[]){
 		if(rota){
 			grav_vec = grav_vec.rotate(btVector3(0,0,1),0.07*fps_cap_timer.delta_s());
 
-			up = up.rotate(btVector3(0,0,1),0.07*fps_cap_timer.delta_s());
-			down = down.rotate(btVector3(0,0,1),0.07*fps_cap_timer.delta_s());
-			left = left.rotate(btVector3(0,0,1),0.07*fps_cap_timer.delta_s());
-			right = right.rotate(btVector3(0,0,1),0.07*fps_cap_timer.delta_s());
 			angle -= 4 * fps_cap_timer.delta_s();
 			dynamicsWorld->setGravity(grav_vec);
 		}
@@ -282,17 +296,26 @@ int main(int argc, char *argv[]){
 		btTransform trans;
 		fallRigidBody->getMotionState()->getWorldTransform(trans);
 
-        off_x = -trans.getOrigin().getX() * 40 + WIDTH/2;
-		off_y = -trans.getOrigin().getY() * 40 + HEIGHT/2;
-
-		if( player->can_jump() ){
-           b2->new_text("Can jump!");
-		} else {
-           b2->new_text("Can not");
+        o_vec_x[o] = -trans.getOrigin().getX() * 40 + WIDTH/2;
+		o_vec_y[o] = -trans.getOrigin().getY() * 40 + HEIGHT/2;
+        
+		o++;
+		if( o > 14 ){
+			o = 0;
 		}
-	
+		off_x = 0;
+		off_y = 0;
+
+		for(int i = 0; i < o_vec_x.size() ; i++){
+		   off_x += o_vec_x[i];
+		   off_y += o_vec_y[i];
+		}
+
+        off_x /= 15;
+        off_y /= 15;
+
 		b2->set_pos(off_x + trans.getOrigin().getX() * 40, off_y + trans.getOrigin().getY() * 40);
-		//b2->new_text("x: " + to_string(trans.getOrigin().getX()) + " y: " + to_string(trans.getOrigin().getY()));
+		b2->new_text("fric: " + to_string(fallRigidBody->getFriction()) + " jump: " + to_string(player->can_jump()));
 	}
 
 	//BULLET clean

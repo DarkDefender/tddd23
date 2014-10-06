@@ -4,14 +4,24 @@
 #include "sdl_h_func.h"
 #include "obj.h"
 #include <math.h>  
+#include <iostream>
+#include "timer.h"
+
+using namespace std;
 
 unordered_map<string,btCollisionShape*> GameObject::obj_coll_shape;
 btDiscreteDynamicsWorld* GameObject::phys_world = NULL;
 SDL_Renderer* GameObject::renderer = NULL;
 
-GameObject::GameObject( string body_type, string tile_set, uint8_t health, uint32_t x, uint32_t y ){
+GameObject::GameObject( string body_type, string tile_set, uint8_t health, uint32_t x, uint32_t y, bool is_controllable ){
 	inited = false;
 	phys_body = NULL;
+	moving = false;
+	jumping = false;
+	controllable = is_controllable;
+	cur_move_speed = 0;
+	move_vec.setZero();
+	old_move_vec.setZero();
 	spawn_x = x;
 	spawn_y = y;
 	if(obj_coll_shape.count(body_type) == 0){
@@ -48,7 +58,19 @@ void GameObject::init(){
 
 	// Limit movement to the x,y axis. And limit rotation around the z axis
 	phys_body->setLinearFactor(btVector3(1,1,0));
-	phys_body->setAngularFactor(btVector3(0,0,1));
+	if(controllable){
+		phys_body->setAngularFactor(btVector3(0,0,0));
+	} else {
+		phys_body->setAngularFactor(btVector3(0,0,1));
+	}
+
+	//TODO only for certain situations!
+    phys_body->setActivationState(DISABLE_DEACTIVATION);
+
+    //Prevent tunneling
+    //setup motion clamping so no tunneling occurs
+	//phys_body->setCcdMotionThreshold(1);
+	//phys_body->setCcdSweptSphereRadius(0.2f);
 
 	phys_world->addRigidBody(phys_body);
 
@@ -97,40 +119,152 @@ class ClosestNotMeSweep : public btCollisionWorld::ClosestConvexResultCallback
 };
 
 bool GameObject::can_jump(){
-		btSphereShape cameraSphere(0.2f);
-        btTransform pos_to, pos_from;
-        phys_body->getMotionState()->getWorldTransform(pos_from);
-		pos_to.setIdentity();
-		pos_to.setOrigin(btVector3(0,0.8f,0) + pos_from.getOrigin());
+	btTransform pos_to, pos_from;
+	btVector3 nor_grav = phys_world->getGravity().normalized();
+	btSphereShape sphere(0.8f);
+	phys_body->getMotionState()->getWorldTransform(pos_from);
+	pos_to.setIdentity();
+	pos_to.setOrigin(0.3f * nor_grav + pos_from.getOrigin());
 
-		ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
+	ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
 
-		phys_world->convexSweepTest(&cameraSphere, pos_from, pos_to, cb);
-		if (cb.hasHit())
-		{
-			return true;
-		} else {
-			return false;
-		}
+	phys_world->convexSweepTest(&sphere, pos_from, pos_to, cb);
+	if (cb.hasHit())
+	{
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool GameObject::can_jump(btVector3 &nor_vec){
+	btTransform pos_to, pos_from;
+	btVector3 nor_grav = phys_world->getGravity().normalized();
+	btSphereShape sphere(0.8f);
+	phys_body->getMotionState()->getWorldTransform(pos_from);
+	pos_to.setIdentity();
+	pos_to.setOrigin(0.3f * nor_grav + pos_from.getOrigin());
+
+	ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
+
+	phys_world->convexSweepTest(&sphere, pos_from, pos_to, cb);
+	if (cb.hasHit())
+	{
+		nor_vec = cb.m_hitNormalWorld;
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool GameObject::can_wall_jump(){
+	btSphereShape sphere(0.8f);
+	btTransform pos_to, pos_from;
+	phys_body->getMotionState()->getWorldTransform(pos_from);
+	pos_to.setIdentity();
+	pos_to.setOrigin(0.3f * phys_world->getGravity().normalized() + pos_from.getOrigin());
+
+	ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
+
+	phys_world->convexSweepTest(&sphere, pos_from, pos_to, cb);
+	if (cb.hasHit())
+	{
+		return true;
+	} else {
+		return false;
+	}
 }
 
 bool GameObject::can_jump_static(){
-		btSphereShape cameraSphere(0.2f);
-        btTransform pos_to, pos_from;
-        phys_body->getMotionState()->getWorldTransform(pos_from);
-		pos_to.setIdentity();
-		pos_to.setOrigin(btVector3(0,0.8f,0) + pos_from.getOrigin());
+	btSphereShape sphere(0.8f);
+	btTransform pos_to, pos_from;
+	phys_body->getMotionState()->getWorldTransform(pos_from);
+	pos_to.setIdentity();
+	pos_to.setOrigin(0.3f * phys_world->getGravity().normalized() + pos_from.getOrigin());
 
-		btCollisionWorld::ClosestConvexResultCallback cb( pos_from.getOrigin(), pos_to.getOrigin() );
-		cb.m_collisionFilterMask = btBroadphaseProxy::StaticFilter;
+	btCollisionWorld::ClosestConvexResultCallback cb( pos_from.getOrigin(), pos_to.getOrigin() );
+	cb.m_collisionFilterMask = btBroadphaseProxy::StaticFilter;
 
-		phys_world->convexSweepTest(&cameraSphere, pos_from, pos_to, cb);
-		if (cb.hasHit())
-		{
-			return true;
-		} else {
-			return false;
+	phys_world->convexSweepTest(&sphere, pos_from, pos_to, cb);
+	if (cb.hasHit())
+	{
+		return true;
+	} else {
+		return false;
+	}
+}
+
+void GameObject::set_move_dir(btVector3 new_vec){
+	old_move_vec = move_vec;
+	move_vec += new_vec.normalized();
+	cur_move_speed = 0;
+	if(move_vec.length() < 0.1f){
+		moving = false;
+		move_timer.stop();
+	} else {
+		moving = true;
+		move_timer.start();
+	}
+}
+
+void GameObject::jump(){
+	if(can_jump()){
+		jumping = true;
+		jump_timer.start();
+		phys_body->applyCentralImpulse(-phys_world->getGravity().normalized() * 100);
+	}
+}
+
+void GameObject::update(){
+	if(!controllable){
+   		return;
+	}
+
+	if(!moving && can_jump()){
+		phys_body->setFriction(2.5f);
+	} else {
+		phys_body->setFriction(0.5f);
+	}
+	if(moving && !jumping){
+		btVector3 adj_move_vec = old_move_vec.lerp(move_vec, cur_move_speed);
+			
+		if(cur_move_speed < 1.0f && move_timer.delta_s() > 0.02){
+			move_timer.start();
+			cur_move_speed += 0.05f;
 		}
+
+		//Check if we need to adjust move_vec because of gravity changes
+		btVector3 vec2 = btVector3(0,0,-1).cross(phys_world->getGravity());
+
+  		adj_move_vec = adj_move_vec.x() * vec2.normalized();
+		btVector3 nor_grav =  phys_world->getGravity().normalized();
+
+        btVector3 grav_vec =  phys_body->getLinearVelocity().dot(nor_grav) * nor_grav;
+
+        btVector3 surf_nor;
+
+		if(can_jump(surf_nor)){
+			btVector3 perp_floor = surf_nor.cross(btVector3(0,0,-1));
+			float angle = (perp_floor * perp_floor.dot(adj_move_vec)).angle(phys_world->getGravity());
+			if(angle > M_PI_2){
+				phys_body->setLinearVelocity(adj_move_vec * 7.0f );
+			} else {
+				//If we are moving along a downward slope don't "step out" into the air.
+				phys_body->setLinearVelocity( perp_floor * perp_floor.dot(adj_move_vec) * 7.0f );
+			}
+		} else {
+			float vec_l = btFabs(( phys_body->getLinearVelocity() - grav_vec).dot(adj_move_vec)) - 4.0f;
+			cout << vec_l << endl;
+			if(vec_l < 0.0f){
+			phys_body->setLinearVelocity( phys_body->getLinearVelocity() + adj_move_vec * 0.5f );
+			}
+		}
+	}
+	if(jumping && jump_timer.delta_s() > 0.1){
+		cur_move_speed = 0;
+		jumping = false;
+		jump_timer.stop();
+	}
 }
 
 void GameObject::QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler)
@@ -149,7 +283,7 @@ void GameObject::render_obj(int off_x, int off_y){
 
 	btVector3 rot_vec;
 	QuaternionToEulerXYZ(trans.getRotation(),rot_vec);
-	float rot = (rot_vec.getZ() / 3.14) * 180.0f;
+	float rot = (rot_vec.getZ() / M_PI) * 180.0f;
 
 	dest.x = off_x - 40 + trans.getOrigin().getX() * 40;
 	dest.y = off_y - 40 + trans.getOrigin().getY() * 40;
