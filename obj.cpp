@@ -157,22 +157,36 @@ bool GameObject::can_jump(btVector3 &nor_vec){
 	}
 }
 
-bool GameObject::can_wall_jump(){
+bool GameObject::can_wall_jump(btVector3 &nor_vec){
 	btSphereShape sphere(0.8f);
 	btTransform pos_to, pos_from;
 	phys_body->getMotionState()->getWorldTransform(pos_from);
 	pos_to.setIdentity();
-	pos_to.setOrigin(0.3f * phys_world->getGravity().normalized() + pos_from.getOrigin());
+	
+	//right wall
+	pos_to.setOrigin(0.3f * phys_world->getGravity().cross(btVector3(0,0,1)).normalized() + pos_from.getOrigin());
 
 	ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
 
 	phys_world->convexSweepTest(&sphere, pos_from, pos_to, cb);
+
 	if (cb.hasHit())
 	{
+		nor_vec = cb.m_hitNormalWorld.rotate(btVector3(0,0,1), M_PI_4);
 		return true;
-	} else {
-		return false;
+	} 
+	//left wall
+	pos_to.setOrigin(0.3f * phys_world->getGravity().cross(btVector3(0,0,-1)).normalized() + pos_from.getOrigin());
+
+	ClosestNotMeSweep cb2( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
+
+	phys_world->convexSweepTest(&sphere, pos_from, pos_to, cb2);
+
+	if (cb2.hasHit()) {
+		nor_vec = cb2.m_hitNormalWorld.rotate(btVector3(0,0,1), -M_PI_4);
+		return true;
 	}
+	return false;
 }
 
 bool GameObject::can_jump_static(){
@@ -208,10 +222,15 @@ void GameObject::set_move_dir(btVector3 new_vec){
 }
 
 void GameObject::jump(){
+	btVector3 nor_vec;
 	if(can_jump()){
 		jumping = true;
 		jump_timer.start();
 		phys_body->applyCentralImpulse(-phys_world->getGravity().normalized() * 100);
+	} else if ( can_wall_jump(nor_vec) ){
+		jumping = true;
+		jump_timer.start();
+		phys_body->applyCentralImpulse(nor_vec.normalized() * 100);
 	}
 }
 
@@ -254,7 +273,6 @@ void GameObject::update(){
 			}
 		} else {
 			float vec_l = btFabs(( phys_body->getLinearVelocity() - grav_vec).dot(adj_move_vec)) - 4.0f;
-			cout << vec_l << endl;
 			if(vec_l < 0.0f){
 			phys_body->setLinearVelocity( phys_body->getLinearVelocity() + adj_move_vec * 0.5f );
 			}

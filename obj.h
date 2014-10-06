@@ -36,7 +36,7 @@ class GameObject {
 
 	bool can_jump();
 	bool can_jump(btVector3 &nor_vec);
-	bool can_wall_jump();
+	bool can_wall_jump(btVector3 &nor_vec);
 	bool can_jump_static();
 
 	void jump();
