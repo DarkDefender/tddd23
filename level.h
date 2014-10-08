@@ -9,11 +9,16 @@
 #include <vector>
 #include <unordered_map>
 
+#include "obj.h"
+#include <list>
+#include <btBulletDynamicsCommon.h> 
+
 using namespace std;
 
 struct Tile {
 	SDL_Texture * texture;
 	SDL_Rect rect;
+
 	//collition shapes for this tile. Everything is stored as polylines
 	vector<vector<SDL_Point>> coll;
 };
@@ -38,14 +43,46 @@ class LevelZone {
 	void render_layers(SDL_Renderer *renderer, int off_x, int off_y);
 	void del_images();
 	void del_layers();
+	SDL_Point get_zone_sizes();
 	~LevelZone();
 };
 
 class Level {
-	vector<vector<LevelZone>> l_zone_tiles;
+	vector<vector<LevelZone*>> l_zone_tiles;
+	SDL_Point render_offset, cur_tile;
+	float render_rot, world_scale;
+    list<GameObject*> obj_list;
+	GameObject* focus_obj;
+    vector<SDL_Point> prev_cam_vec;
+	unsigned int cam_vec_id;
+	SDL_Texture *level_texture;
+    
+    bool rotate_world;
+
+    //Bullet
+	btBroadphaseInterface* broadphase;
+	btDefaultCollisionConfiguration* collisionConfiguration;
+	btCollisionDispatcher* dispatcher;
+    btSequentialImpulseConstraintSolver* solver;
+	btDiscreteDynamicsWorld* dynamicsWorld;
+	btVector3 grav_vec;
+
+	btTriangleMesh* level_trimesh;
+	btCollisionShape *mTriMeshShape;
+    btRigidBody* levelRigidBody;
+
+	void setup_bullet_world();
+	void del_bullet_world();
+    void create_terrain();
+
+	void update_offset();
 	public:
-	Level(string level_file);
-	void draw_level();
+	Level(string level_file, SDL_Renderer *renderer);
+	~Level();
+	GameObject* get_player();
+	void update(float delta_s);
+	void toggle_rotate_world();
+	void draw_level(SDL_Renderer *renderer);
 };
 
 

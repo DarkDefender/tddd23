@@ -101,6 +101,13 @@ btRigidBody *GameObject::get_body(){
 	return phys_body;
 }
 
+SDL_Point GameObject::get_pos(float scale){
+		btTransform trans;
+		phys_body->getMotionState()->getWorldTransform(trans);
+		SDL_Point pos = { trans.getOrigin().getX() * scale, trans.getOrigin().getY() * scale};
+		return pos;
+}
+
 class ClosestNotMeSweep : public btCollisionWorld::ClosestConvexResultCallback
 {
 	public:

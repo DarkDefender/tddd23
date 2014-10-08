@@ -35,59 +35,15 @@ void cleanup(int exitcode){
 	exit(exitcode);
 }
 
-void update_screen(SDL_Renderer *renderer, list<Text_box*> text_object_list, LevelZone *level, list<GameObject*> obj_list){
-	if ( texture == NULL ){
-		//TODO calc the exact needed size
-		texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 800, 800);
-		SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-	}
+void update_screen(SDL_Renderer *renderer, list<Text_box*> text_object_list, Level *level){
 
-	SDL_SetRenderTarget(renderer, texture);
-	/* Clear the background to background color */
-	SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-	SDL_RenderClear(renderer);
+	level->draw_level(renderer);
 
-	level->render_layers(renderer, off_x+80, off_y+160);
-
-	for (list<GameObject*>::iterator it = obj_list.begin(); it != obj_list.end(); it++){
-		(*it)->render_obj(off_x+80, off_y+160);
-		(*it)->update();
-	}
-	SDL_SetRenderTarget(renderer, NULL);
-	SDL_Rect dest = {-80,-160,800,800};
-	SDL_RenderCopyEx(renderer, texture, NULL, &dest, angle, NULL, SDL_FLIP_NONE);
 	for (list<Text_box*>::iterator it = text_object_list.begin(); it != text_object_list.end(); it++){
 		(*it)->render_text();
 	}
 
     SDL_RenderPresent(renderer);
-}
-
-btTriangleMesh* create_terrain(vector<vector<SDL_Point>> zone_coll){
-	btTriangleMesh* trimesh = new btTriangleMesh();
-	for(unsigned int p = 0; p < zone_coll.size(); p++){
-		for(unsigned int j = 0; j < zone_coll[p].size() - 1; j++){
-			//convert the 2d line to a 3d plane
-			btScalar p1_x = zone_coll[p][j].x;
-			btScalar p1_y = zone_coll[p][j].y;
-			btScalar p2_x = zone_coll[p][j+1].x;
-			btScalar p2_y = zone_coll[p][j+1].y;
-
-			p1_x /= SCALE_FACTOR;
-			p1_y /= SCALE_FACTOR;
-			p2_x /= SCALE_FACTOR;
-			p2_y /= SCALE_FACTOR;
-
-			trimesh->addTriangle( btVector3(p1_x, p1_y , -1),
-								  btVector3(p1_x, p1_y , 1),
-								  btVector3(p2_x, p2_y , 1));
-
-			trimesh->addTriangle( btVector3(p2_x, p2_y , 1),
-								  btVector3(p2_x, p2_y , -1),
-								  btVector3(p1_x, p1_y , -1));
-		}
-	}
-	return trimesh;
 }
 
 int main(int argc, char *argv[]){
@@ -136,75 +92,13 @@ int main(int argc, char *argv[]){
 	text_list.push_back(b1);
 	text_list.push_back(b2);
 
-    //Load level
-    LevelZone *level = new LevelZone("untitled.tmx", renderer ); 
+    Level *level = new Level("happ", renderer);
 
-	//---- BULLET INIT 
-    // Build the broadphase
-    btBroadphaseInterface* broadphase = new btDbvtBroadphase();
+	//btRigidBody *fallRigidBody = level->get_player()->get_body();
 
-    // Set up the collision configuration and dispatcher
-    btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
-    btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
-
-    // The actual physics solver
-    btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
-
-    // The world.
-    btDiscreteDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
-    
-	//Default gravity is -10, but here the the game world has the y axis inverted to grav is +10
-	btVector3 grav_vec = btVector3(0, 10, 0);
-	dynamicsWorld->setGravity(grav_vec);
-
-    //---- END BULLET INIT
-
-	// Setup bullet shapes
-
-	btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 1);
-
-	btCollisionShape* fallShape = new btSphereShape(1);
-
-	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, -1, 0)));
-
-	btRigidBody::btRigidBodyConstructionInfo
-		groundRigidBodyCI(0, groundMotionState, groundShape, btVector3(0, 0, 0));
-	btRigidBody* groundRigidBody = new btRigidBody(groundRigidBodyCI);
-	dynamicsWorld->addRigidBody(groundRigidBody);
-
-    // Setup the world shape
-	// TODO init the whole world
-    btTriangleMesh* trimesh = create_terrain(level->get_coll_vec());
-
-	btCollisionShape *mTriMeshShape = new btBvhTriangleMeshShape(trimesh,true);
-
-	btDefaultMotionState* levelMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
-
-	btRigidBody::btRigidBodyConstructionInfo
-		levelRigidBodyCI(0, levelMotionState, mTriMeshShape, btVector3(0, 0, 0));
-	btRigidBody* levelRigidBody = new btRigidBody(levelRigidBodyCI);
-	dynamicsWorld->addRigidBody(levelRigidBody);
-
-    //Create a game object
-	//TODO remember to free/delete this later
-	GameObject *player = new GameObject("circle", "circle.png", 10, 6, 10, true);
-	//Only need to set renderer and phys world once.
-	player->set_renderer(renderer);
-	player->set_phys_world(dynamicsWorld);
-	//Only need to call init for the first object created after renderer and phys world has been set
-	player->init();
-		
-	GameObject *box = new GameObject("box", "box.png", 10, 10, 10);
-
-	btRigidBody *fallRigidBody = player->get_body();
-
-	list<GameObject*> obj_list;
-	obj_list.push_back(player);
-	obj_list.push_back(box);
+    GameObject *player = level->get_player();
 
     // Nudge the circle
-	btVector3 up = btVector3(0, -20, 0);
-	btVector3 down = btVector3(0, 0, 20);
 	btVector3 left = btVector3(-20, 0, 0);
 	btVector3 right = btVector3(20, 0, 0);
 	//fallRigidBody->activate(true);
@@ -216,16 +110,6 @@ int main(int argc, char *argv[]){
 	bool done = false;
     int counted_frames = 0;
 	fps_timer.start();
-
-	bool rota = false;
-
-    float f = 0.0f;
-
-	int o = 0;
-	vector<float> o_vec_x;
-	vector<float> o_vec_y;
-    o_vec_x.resize(15);
-    o_vec_y.resize(15);
 
 	while ( ! done ) {
 
@@ -250,9 +134,9 @@ int main(int argc, char *argv[]){
 						case SDLK_LEFT:  player->set_move_dir(left); break;
 						case SDLK_RIGHT: player->set_move_dir(right); break;
 						case SDLK_UP:    player->jump(); break;
-						case SDLK_DOWN:  f += 0.5f; fallRigidBody->setFriction(f); break;
+						//case SDLK_DOWN:  f += 0.5f; fallRigidBody->setFriction(f); break;
 						//case SDLK_SPACE: f -= 0.5f; fallRigidBody->setFriction(f); break;
-						case SDLK_SPACE: rota = !rota; break;
+						case SDLK_SPACE: level->toggle_rotate_world(); break;
 					}
 					break;
  				case SDL_KEYUP:
@@ -277,7 +161,7 @@ int main(int argc, char *argv[]){
 			avg_fps = 0;
 		}
 
-		update_screen(renderer, text_list, level, obj_list);
+		update_screen(renderer, text_list, level);
         ++counted_frames;
 
 		//Cap framerate
@@ -286,64 +170,12 @@ int main(int argc, char *argv[]){
 			SDL_Delay( SCREEN_TICKS_PER_FRAME - frame_ticks );
 		}
 
-        //Rotate the world 4 degree per sec
-		if(rota){
-			grav_vec = grav_vec.rotate(btVector3(0,0,1),0.07*fps_cap_timer.delta_s());
-
-			angle -= 4 * fps_cap_timer.delta_s();
-			dynamicsWorld->setGravity(grav_vec);
-		}
         //update physics
-		dynamicsWorld->stepSimulation(fps_cap_timer.delta_s());
+		level->update(fps_cap_timer.delta_s());
 
-		btTransform trans;
-		fallRigidBody->getMotionState()->getWorldTransform(trans);
-
-        o_vec_x[o] = -trans.getOrigin().getX() * SCALE_FACTOR + WIDTH/2;
-		o_vec_y[o] = -trans.getOrigin().getY() * SCALE_FACTOR + HEIGHT/2;
-        
-		o++;
-		if( o > 14 ){
-			o = 0;
-		}
-		off_x = 0;
-		off_y = 0;
-
-		for(int i = 0; i < o_vec_x.size() ; i++){
-		   off_x += o_vec_x[i];
-		   off_y += o_vec_y[i];
-		}
-
-        off_x /= 15;
-        off_y /= 15;
-
-		b2->set_pos(off_x + trans.getOrigin().getX() * SCALE_FACTOR, off_y + trans.getOrigin().getY() * SCALE_FACTOR);
-		b2->new_text("fric: " + to_string(fallRigidBody->getFriction()) + " jump: " + to_string(player->can_jump()));
 	}
 
-	//BULLET clean
-
-	dynamicsWorld->removeRigidBody(groundRigidBody);
-	delete groundRigidBody->getMotionState();
-	delete groundRigidBody;
-
-	dynamicsWorld->removeRigidBody(levelRigidBody);
-	delete levelRigidBody->getMotionState();
-	delete levelRigidBody;
-
-	delete fallShape;
-
-	delete groundShape;
-
-	delete mTriMeshShape;
-
-	delete trimesh;
-    // Clean up behind ourselves like good little programmers
-    delete dynamicsWorld;
-    delete solver;
-    delete dispatcher;
-    delete collisionConfiguration;
-    delete broadphase;
+	delete level;
 
 	// TODO clean up all loaded fonts!
 	//TTF_CloseFont(font);  

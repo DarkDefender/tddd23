@@ -8,12 +8,30 @@
 #include <vector>
 #include <unordered_map>
 
+#include "obj.h"
+#include <list>
+#include <btBulletDynamicsCommon.h> 
+
 using namespace std; 
+
+const int WIDTH = 640;
+const int HEIGHT = 480;
 
 unordered_map<string,pugi::xml_document> LevelZone::zones;
 unordered_map<string,SDL_Texture *> LevelZone::images;
 
-Level::Level(string level_file){
+Level::Level(string level_file, SDL_Renderer *renderer){
+    render_rot = 0;
+	prev_cam_vec.resize(15);
+	cam_vec_id = 0;
+	world_scale = 80.0f;
+	focus_obj = NULL;
+	render_offset = {0,0};
+	cur_tile = {-1,-1};
+	level_texture = NULL;
+	rotate_world = false;
+
+	/*
 	pugi::xml_document level;
 	
 	//TODO handle faliures
@@ -25,7 +43,7 @@ Level::Level(string level_file){
 	level_w = map.attribute("width").as_int();
 	level_h = map.attribute("height").as_int();
 	//load in the level tile numbers
-	/*
+	
 	int i = 1;
 	vector<LevelZone> tile_vec;
 	for( pugi::xml_node tiles = map.child("layer").child("data").first_child(); tiles; tiles = tiles.next_sibling()) {
@@ -41,10 +59,218 @@ Level::Level(string level_file){
     }
     */
 	//TODO get filenames from gids to load level tiles
+
+    
+    //Load level
+	vector<LevelZone*> lvl_vec;
+    lvl_vec.push_back(new LevelZone("untitled.tmx", renderer ));
+	l_zone_tiles.push_back(lvl_vec);
+
+    //Setup bullet world
+	setup_bullet_world();
+
+    //Create a game object
+	//TODO remember to free/delete this later
+	GameObject *player = new GameObject("circle", "circle.png", 10, 6, 10, true);
+	//Only need to set renderer and phys world once.
+	player->set_renderer(renderer);
+	player->set_phys_world(dynamicsWorld);
+	//Only need to call init for the first object created after renderer and phys world has been set
+	player->init();
+		
+	GameObject *box = new GameObject("box", "box.png", 10, 10, 10);
+ 	obj_list.push_back(player);
+	obj_list.push_back(box);  
+
+	focus_obj = player;
 }
 
-void Level::draw_level(){
+Level::~Level(){
+	if(level_texture != NULL){
+		SDL_DestroyTexture( level_texture );
+	}
 
+    del_bullet_world();
+
+	//TODO clean up object list & level zones
+}
+
+void Level::setup_bullet_world(){
+	//---- BULLET INIT 
+    // Build the broadphase
+    broadphase = new btDbvtBroadphase();
+
+    // Set up the collision configuration and dispatcher
+    collisionConfiguration = new btDefaultCollisionConfiguration();
+    dispatcher = new btCollisionDispatcher(collisionConfiguration);
+
+    // The actual physics solver
+    solver = new btSequentialImpulseConstraintSolver;
+
+    // The world.
+    dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
+    
+	//Default gravity is -10, but here the the game world has the y axis inverted to grav is +10
+	grav_vec = btVector3(0, 10, 0);
+	dynamicsWorld->setGravity(grav_vec);
+
+    //---- END BULLET INIT
+	
+	create_terrain();
+	mTriMeshShape = new btBvhTriangleMeshShape(level_trimesh,true);
+	btDefaultMotionState* levelMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+	
+	btRigidBody::btRigidBodyConstructionInfo
+		levelRigidBodyCI(0, levelMotionState, mTriMeshShape, btVector3(0, 0, 0));
+	levelRigidBody = new btRigidBody(levelRigidBodyCI);
+	dynamicsWorld->addRigidBody(levelRigidBody);
+}
+
+void Level::del_bullet_world(){
+	
+	dynamicsWorld->removeRigidBody(levelRigidBody);
+	delete levelRigidBody->getMotionState();
+	delete levelRigidBody;
+
+	delete mTriMeshShape;
+
+	delete level_trimesh; 
+
+    // Clean up behind ourselves like good little programmers
+    delete dynamicsWorld;
+    delete solver;
+    delete dispatcher;
+    delete collisionConfiguration;
+    delete broadphase;
+}
+
+void Level::create_terrain(){
+	level_trimesh = new btTriangleMesh();
+	for(unsigned int i = 0; i < l_zone_tiles.size(); i++){
+		for(unsigned int q = 0; q < l_zone_tiles[i].size(); q++){
+
+			vector<vector<SDL_Point>> zone_coll = l_zone_tiles[i][q]->get_coll_vec();
+
+			for(unsigned int p = 0; p < zone_coll.size(); p++){
+				for(unsigned int j = 0; j < zone_coll[p].size() - 1; j++){
+					//convert the 2d line to a 3d plane
+					btScalar p1_x = zone_coll[p][j].x;
+					btScalar p1_y = zone_coll[p][j].y;
+					btScalar p2_x = zone_coll[p][j+1].x;
+					btScalar p2_y = zone_coll[p][j+1].y;
+
+					p1_x /= world_scale;
+					p1_y /= world_scale;
+					p2_x /= world_scale;
+					p2_y /= world_scale;
+
+					level_trimesh->addTriangle( btVector3(p1_x, p1_y , -1),
+							btVector3(p1_x, p1_y , 1),
+							btVector3(p2_x, p2_y , 1));
+
+					level_trimesh->addTriangle( btVector3(p2_x, p2_y , 1),
+							btVector3(p2_x, p2_y , -1),
+							btVector3(p1_x, p1_y , -1));
+				}
+			}
+		}
+	}
+}
+
+void Level::update_offset(){
+	SDL_Point focus_point = focus_obj->get_pos(world_scale);
+
+	if(cur_tile.x == -1){
+		//We want to have the camera begin were we are spawning
+		for(unsigned int i = 0; i < prev_cam_vec.size() ; i++){
+			prev_cam_vec[i] = {-focus_point.x + WIDTH/2,
+							   -focus_point.y + HEIGHT/2};
+		}
+		return;
+	}
+
+	prev_cam_vec[cam_vec_id] = {-focus_point.x + WIDTH/2,
+		-focus_point.y + HEIGHT/2};
+
+	cam_vec_id++;
+	if( cam_vec_id >= prev_cam_vec.size() ){
+		cam_vec_id = 0;
+	}
+
+	for(unsigned int i = 0; i < prev_cam_vec.size() ; i++){
+		render_offset.x += prev_cam_vec[i].x;
+		render_offset.y += prev_cam_vec[i].y;
+	}
+
+	render_offset.x /= 15;
+	render_offset.y /= 15;
+}
+
+void Level::draw_level(SDL_Renderer *renderer){
+	if( focus_obj == NULL){
+		cerr << "No focus object!" << endl;
+		return;
+	}
+	update_offset();
+
+	if(cur_tile.x == -1){
+		//where are we?
+		int w = 0, h = 0, i;
+        for(i = 0; i < l_zone_tiles.size(); i++){
+			w += l_zone_tiles[i][0]->get_zone_sizes().x;
+			if( w > render_offset.x ){
+				cur_tile.x = i;
+				break;
+			}
+		}
+        for(int j = 0; j < l_zone_tiles.size(); j++){
+			h += l_zone_tiles[i][j]->get_zone_sizes().y;
+			if( h > render_offset.y ){
+				cur_tile.y = j;
+				break;
+			}
+		}
+	}
+
+	if ( level_texture == NULL ){
+		//TODO calc the exact needed size
+		level_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 800, 800);
+		SDL_SetTextureBlendMode(level_texture, SDL_BLENDMODE_BLEND);
+	}
+
+	SDL_SetRenderTarget(renderer, level_texture);
+	/* Clear the background to background color */
+	SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+	SDL_RenderClear(renderer);
+
+	l_zone_tiles[cur_tile.x][cur_tile.y]->render_layers(renderer, render_offset.x+80, render_offset.y+160);
+
+	for (list<GameObject*>::iterator it = obj_list.begin(); it != obj_list.end(); it++){
+		(*it)->render_obj(render_offset.x+80, render_offset.y+160);
+		(*it)->update();
+	}
+	SDL_SetRenderTarget(renderer, NULL);
+	SDL_Rect dest = {-80,-160,800,800};
+	SDL_RenderCopyEx(renderer, level_texture, NULL, &dest, render_rot, NULL, SDL_FLIP_NONE);
+}
+
+void Level::toggle_rotate_world(){
+	rotate_world = !rotate_world;
+}
+
+void Level::update(float delta_s){
+	//Rotate the world 4 degree per sec
+	if(rotate_world){
+		grav_vec = grav_vec.rotate(btVector3(0,0,1),0.07*delta_s);
+
+		render_rot -= 4 * delta_s;
+		dynamicsWorld->setGravity(grav_vec);
+	}
+	dynamicsWorld->stepSimulation(delta_s);
+}
+
+GameObject* Level::get_player(){
+	return focus_obj;
 }
 
 void LevelZone::parse_collison_obj( pugi::xml_node node, int tile_id ){
@@ -331,6 +557,11 @@ void LevelZone::del_layers(){
           SDL_DestroyTexture( *it );
 	 }
      level_zone_layers.clear();
+}
+
+SDL_Point LevelZone::get_zone_sizes(){
+	SDL_Point sizes = {zone_w, zone_h};
+	return sizes;
 }
 
 LevelZone::~LevelZone(){

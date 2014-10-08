@@ -47,6 +47,7 @@ class GameObject {
     void QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler);
 
 	btRigidBody *get_body();
+	SDL_Point get_pos(float scale);
 };
 
 #endif
