@@ -260,6 +260,7 @@ int main(int argc, char *argv[]){
 					{
 						case SDLK_LEFT:  player->set_move_dir(-left); break;
 						case SDLK_RIGHT: player->set_move_dir(-right); break;
+						case SDLK_UP:    player->stop_jump(); break;
 						//case SDLK_SPACE: rota = !rota; break;
 					}
 					break;

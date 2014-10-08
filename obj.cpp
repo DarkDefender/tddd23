@@ -20,6 +20,7 @@ GameObject::GameObject( string body_type, string tile_set, uint8_t health, uint3
 	jumping = false;
 	controllable = is_controllable;
 	cur_move_speed = 0;
+	jump_vec.setZero();
 	move_vec.setZero();
 	old_move_vec.setZero();
 	adj_move_vec.setZero();
@@ -173,7 +174,7 @@ bool GameObject::can_wall_jump(btVector3 &nor_vec){
 
 	if (cb.hasHit())
 	{
-		nor_vec = cb.m_hitNormalWorld.rotate(btVector3(0,0,1), M_PI_4);
+		nor_vec = cb.m_hitNormalWorld.rotate(btVector3(0,0,1), M_PI_4).normalized();
 		return true;
 	} 
 	//left wall
@@ -184,7 +185,7 @@ bool GameObject::can_wall_jump(btVector3 &nor_vec){
 	phys_world->convexSweepTest(&sphere, pos_from, pos_to, cb2);
 
 	if (cb2.hasHit()) {
-		nor_vec = cb2.m_hitNormalWorld.rotate(btVector3(0,0,1), -M_PI_4);
+		nor_vec = cb2.m_hitNormalWorld.rotate(btVector3(0,0,1), -M_PI_4).normalized();
 		return true;
 	}
 	return false;
@@ -223,19 +224,42 @@ void GameObject::set_move_dir(btVector3 new_vec){
 }
 
 void GameObject::jump(){
-	btVector3 nor_vec;
+	if(jumping){
+      //We have already jumped!
+	  return;
+	}
 	if(can_jump()){
 		jumping = true;
 		jump_timer.start();
 		if(moving){
-			phys_body->applyCentralImpulse( (adj_move_vec - phys_world->getGravity()).normalized() * 70);
+			jump_vec = (adj_move_vec - phys_world->getGravity()).normalized();
+			phys_body->applyCentralImpulse( jump_vec * 70);
 		} else {
-			phys_body->applyCentralImpulse(-phys_world->getGravity().normalized() * 70);
+			jump_vec = -phys_world->getGravity().normalized();
+			phys_body->applyCentralImpulse( jump_vec * 70);
 		}
-	} else if ( can_wall_jump(nor_vec) ){
+	} else if ( can_wall_jump(jump_vec) ){
 		jumping = true;
 		jump_timer.start();
-		phys_body->applyCentralImpulse(nor_vec.normalized() * 70);
+		phys_body->applyCentralImpulse(jump_vec * 70);
+	}
+}
+
+void GameObject::stop_jump(){
+	if(jumping){
+		cur_move_speed = 0;
+		jumping = false;
+		
+		float delta = jump_timer.delta_s();
+		if ( delta < 0.07f ){
+           delta = 0.07f;
+		}
+
+		//Only try to negate the current jumping dir if we are traveling in that dir
+		if(phys_body->getLinearVelocity().dot(jump_vec) > 0.1f){ 
+			phys_body->applyCentralImpulse(-jump_vec * (3.0f/delta) );
+		}
+		jump_timer.stop();
 	}
 }
 
@@ -283,7 +307,7 @@ void GameObject::update(){
 			}
 		}
 	}
-	if(jumping && jump_timer.delta_s() > 0.1){
+	if(jumping && jump_timer.delta_s() > 0.2){
 		cur_move_speed = 0;
 		jumping = false;
 		jump_timer.stop();

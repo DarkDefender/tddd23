@@ -17,7 +17,7 @@ class GameObject {
 
     Timer jump_timer, move_timer;	
 
-    btVector3 move_vec, old_move_vec, adj_move_vec;
+    btVector3 move_vec, old_move_vec, adj_move_vec, jump_vec;
     float cur_move_speed;
 
 	static unordered_map<string,btCollisionShape*> obj_coll_shape;
@@ -40,6 +40,7 @@ class GameObject {
 	bool can_jump_static();
 
 	void jump();
+	void stop_jump();
 	void set_move_dir(btVector3 new_vec);
     void update();
 
