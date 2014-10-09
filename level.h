@@ -54,8 +54,9 @@ class Level {
     list<GameObject*> obj_list;
 	GameObject* focus_obj;
     vector<SDL_Point> prev_cam_vec;
-	unsigned int cam_vec_id;
+	unsigned int cam_vec_id, tile_w, tile_h;
 	SDL_Texture *level_texture;
+	SDL_Rect tile_dim;
     
     bool rotate_world;
 
@@ -76,6 +77,7 @@ class Level {
     void create_terrain();
 
 	void update_offset();
+	void update_tile_index();
 	public:
 	Level(string level_file, SDL_Renderer *renderer);
 	~Level();

@@ -92,7 +92,7 @@ int main(int argc, char *argv[]){
 	text_list.push_back(b1);
 	text_list.push_back(b2);
 
-    Level *level = new Level("happ", renderer);
+    Level *level = new Level("level.tmx", renderer);
 
 	//btRigidBody *fallRigidBody = level->get_player()->get_body();
 

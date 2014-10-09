@@ -31,7 +31,7 @@ Level::Level(string level_file, SDL_Renderer *renderer){
 	level_texture = NULL;
 	rotate_world = false;
 
-	/*
+
 	pugi::xml_document level;
 	
 	//TODO handle faliures
@@ -40,12 +40,14 @@ Level::Level(string level_file, SDL_Renderer *renderer){
 
     pugi::xml_node map = level.child("map");
 
+    tile_w = map.attribute("tilewidth").as_int();
+	tile_h = map.attribute("tileheight").as_int();  
 	level_w = map.attribute("width").as_int();
 	level_h = map.attribute("height").as_int();
 	//load in the level tile numbers
 	
 	int i = 1;
-	vector<LevelZone> tile_vec;
+	vector<LevelZone*> tile_vec;
 	for( pugi::xml_node tiles = map.child("layer").child("data").first_child(); tiles; tiles = tiles.next_sibling()) {
         if( i == level_w){
             l_zone_tiles.push_back(tile_vec);
@@ -53,18 +55,23 @@ Level::Level(string level_file, SDL_Renderer *renderer){
             i = 1;
             continue;
         } else {
-            tile_vec.push_back(tiles.attribute("gid").value());
+			string tile_no(tiles.attribute("gid").value());
+			if(tile_no == "0"){
+				tile_vec.push_back(NULL);
+			} else {
+            tile_vec.push_back(new LevelZone(tile_no + ".tmx", renderer));
+			}
         }
         i++;
     }
-    */
 	//TODO get filenames from gids to load level tiles
 
-    
+    /*
     //Load level
 	vector<LevelZone*> lvl_vec;
     lvl_vec.push_back(new LevelZone("untitled.tmx", renderer ));
 	l_zone_tiles.push_back(lvl_vec);
+    */
 
     //Setup bullet world
 	setup_bullet_world();
@@ -149,15 +156,19 @@ void Level::create_terrain(){
 	for(unsigned int i = 0; i < l_zone_tiles.size(); i++){
 		for(unsigned int q = 0; q < l_zone_tiles[i].size(); q++){
 
+            if(l_zone_tiles[i][q] == NULL){
+				continue;
+			}
+
 			vector<vector<SDL_Point>> zone_coll = l_zone_tiles[i][q]->get_coll_vec();
 
 			for(unsigned int p = 0; p < zone_coll.size(); p++){
 				for(unsigned int j = 0; j < zone_coll[p].size() - 1; j++){
-					//convert the 2d line to a 3d plane
-					btScalar p1_x = zone_coll[p][j].x;
-					btScalar p1_y = zone_coll[p][j].y;
-					btScalar p2_x = zone_coll[p][j+1].x;
-					btScalar p2_y = zone_coll[p][j+1].y;
+					//convert the 2d line to a 3d plane, add tile offset
+					btScalar p1_x = q * tile_h * 10 + zone_coll[p][j].x;
+					btScalar p1_y = i * tile_w * 10 + zone_coll[p][j].y;
+					btScalar p2_x = q * tile_h * 10 + zone_coll[p][j+1].x;
+					btScalar p2_y = i * tile_w * 10 + zone_coll[p][j+1].y;
 
 					p1_x /= world_scale;
 					p1_y /= world_scale;
@@ -206,31 +217,21 @@ void Level::update_offset(){
 	render_offset.y /= 15;
 }
 
+void Level::update_tile_index(){
+	//where are we?
+	cur_tile.x = abs(render_offset.x) / (tile_w * 10);
+    cur_tile.y = abs(render_offset.y) / (tile_h * 10);
+    //cerr << cur_tile.x << " y: " << cur_tile.y << endl;
+
+}
+
 void Level::draw_level(SDL_Renderer *renderer){
 	if( focus_obj == NULL){
 		cerr << "No focus object!" << endl;
 		return;
 	}
 	update_offset();
-
-	if(cur_tile.x == -1){
-		//where are we?
-		int w = 0, h = 0, i;
-        for(i = 0; i < l_zone_tiles.size(); i++){
-			w += l_zone_tiles[i][0]->get_zone_sizes().x;
-			if( w > render_offset.x ){
-				cur_tile.x = i;
-				break;
-			}
-		}
-        for(int j = 0; j < l_zone_tiles.size(); j++){
-			h += l_zone_tiles[i][j]->get_zone_sizes().y;
-			if( h > render_offset.y ){
-				cur_tile.y = j;
-				break;
-			}
-		}
-	}
+    update_tile_index();
 
 	if ( level_texture == NULL ){
 		//TODO calc the exact needed size
@@ -243,7 +244,14 @@ void Level::draw_level(SDL_Renderer *renderer){
 	SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 	SDL_RenderClear(renderer);
 
-	l_zone_tiles[cur_tile.x][cur_tile.y]->render_layers(renderer, render_offset.x+80, render_offset.y+160);
+	for(int i = 0; i < 2; i++){
+		for(int j = 0; j < 2; j++){
+			LevelZone* zone = l_zone_tiles.at(cur_tile.y + i).at(cur_tile.x + j);
+			if(zone != NULL){
+				zone->render_layers(renderer, (cur_tile.x + j) * tile_w * 10 + render_offset.x+80, (cur_tile.y + i) * tile_h * 10 + render_offset.y+160);
+			}
+		}
+	}
 
 	for (list<GameObject*>::iterator it = obj_list.begin(); it != obj_list.end(); it++){
 		(*it)->render_obj(render_offset.x+80, render_offset.y+160);
