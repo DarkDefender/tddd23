@@ -208,6 +208,8 @@ void Level::update_offset(){
 		cam_vec_id = 0;
 	}
 
+	render_offset = {0,0};
+
 	for(unsigned int i = 0; i < prev_cam_vec.size() ; i++){
 		render_offset.x += prev_cam_vec[i].x;
 		render_offset.y += prev_cam_vec[i].y;
