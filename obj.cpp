@@ -14,21 +14,23 @@ unordered_map<string,btCollisionShape*> GameObject::obj_coll_shape;
 btDiscreteDynamicsWorld* GameObject::phys_world = NULL;
 SDL_Renderer* GameObject::renderer = NULL;
 
-GameObject::GameObject( string body_type, string tile_set, uint8_t health, float x, float y, bool is_controllable ){
+GameObject::GameObject( string body_type, string tile_set, uint8_t start_health, float x, float y, bool is_controllable ){
 	obj_name = tile_set;
 	texture = NULL;
 	controllable = is_controllable;
 	spawn_x = x;
 	spawn_y = y;
+	health = start_health;
 	pre_init(body_type);
 }
 
-GameObject::GameObject( string body_type, SDL_Texture *new_tex, uint8_t health, float x, float y, bool is_controllable ){
+GameObject::GameObject( string body_type, SDL_Texture *new_tex, uint8_t start_health, float x, float y, bool is_controllable ){
 	texture = new_tex;
 	controllable = is_controllable;
 	//This is spawned by a level zone so convert the coords to bullet coords (world_scale)
 	spawn_x = x/80.0f;
 	spawn_y = y/80.0f;
+	health = start_health;
 	pre_init(body_type);
 }
 

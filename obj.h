@@ -15,16 +15,17 @@ class GameObject {
 	string obj_name;
 	SDL_Texture *texture;
 
-    Timer jump_timer, move_timer;	
+	Timer jump_timer, move_timer;	
 
-    btVector3 move_vec, old_move_vec, adj_move_vec, jump_vec;
-    float cur_move_speed;
+	btVector3 move_vec, old_move_vec, adj_move_vec, jump_vec;
+	float cur_move_speed;
 
 	static unordered_map<string,btCollisionShape*> obj_coll_shape;
 	static btDiscreteDynamicsWorld* phys_world;
 	static SDL_Renderer *renderer;
 	bool godmode, inited, moving, jumping, controllable;
 	uint32_t spawn_x, spawn_y;
+	int health;
 	void clean_up();
 	void pre_init(string body_type);
 	public:
@@ -44,9 +45,9 @@ class GameObject {
 	void jump();
 	void stop_jump();
 	void set_move_dir(btVector3 new_vec);
-    void update();
+	void update();
 
-    void QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler);
+	void QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler);
 
 	btRigidBody *get_body();
 	SDL_Point get_pos(float scale);
