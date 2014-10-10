@@ -23,7 +23,7 @@ class GameObject {
 	static unordered_map<string,btCollisionShape*> obj_coll_shape;
 	static btDiscreteDynamicsWorld* phys_world;
 	static SDL_Renderer *renderer;
-	bool godmode, inited, moving, jumping, controllable;
+	bool godmode, inited, moving, jumping, controllable, dead;
 	uint32_t spawn_x, spawn_y;
 	int health;
 	void clean_up();
@@ -46,6 +46,12 @@ class GameObject {
 	void stop_jump();
 	void set_move_dir(btVector3 new_vec);
 	void update();
+
+	void attack(btVector3 dir, int dmg);
+	void apply_dmg(int dmg);
+         
+        bool get_controllable();
+	bool get_dead();
 
 	void QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler);
 

@@ -21,6 +21,7 @@ GameObject::GameObject( string body_type, string tile_set, uint8_t start_health,
 	spawn_x = x;
 	spawn_y = y;
 	health = start_health;
+	dead = false;
 	pre_init(body_type);
 }
 
@@ -31,6 +32,7 @@ GameObject::GameObject( string body_type, SDL_Texture *new_tex, uint8_t start_he
 	spawn_x = x/80.0f;
 	spawn_y = y/80.0f;
 	health = start_health;
+	dead = false;
 	pre_init(body_type);
 }
 
@@ -83,11 +85,14 @@ void GameObject::init(){
 		phys_body->setAngularFactor(btVector3(0,0,1));
 	}
 
-	//TODO only for certain situations!
-    phys_body->setActivationState(DISABLE_DEACTIVATION);
+	//Add this GameObject to the bullet for when we do collision detection (health etc)
+	phys_body->setUserPointer(this);
 
-    //Prevent tunneling
-    //setup motion clamping so no tunneling occurs
+	//TODO only for certain situations!
+	phys_body->setActivationState(DISABLE_DEACTIVATION);
+
+	//Prevent tunneling
+	//setup motion clamping so no tunneling occurs
 	//phys_body->setCcdMotionThreshold(1);
 	//phys_body->setCcdSweptSphereRadius(0.2f);
 
@@ -121,10 +126,10 @@ btRigidBody *GameObject::get_body(){
 }
 
 SDL_Point GameObject::get_pos(float scale){
-		btTransform trans;
-		phys_body->getMotionState()->getWorldTransform(trans);
-		SDL_Point pos = { trans.getOrigin().getX() * scale, trans.getOrigin().getY() * scale};
-		return pos;
+	btTransform trans;
+	phys_body->getMotionState()->getWorldTransform(trans);
+	SDL_Point pos = { trans.getOrigin().getX() * scale, trans.getOrigin().getY() * scale};
+	return pos;
 }
 
 class ClosestNotMeSweep : public btCollisionWorld::ClosestConvexResultCallback
@@ -290,7 +295,7 @@ void GameObject::stop_jump(){
 }
 
 void GameObject::update(){
-	if(!controllable){
+	if(!controllable || dead){
    		return;
 	}
 
@@ -338,6 +343,48 @@ void GameObject::update(){
 		jumping = false;
 		jump_timer.stop();
 	}
+}
+
+void GameObject::attack(btVector3 dir, int dmg){
+ 	btTransform pos_to, pos_from;
+	btSphereShape sphere(0.1f);
+	phys_body->getMotionState()->getWorldTransform(pos_from);
+	pos_to.setIdentity();
+	pos_to.setOrigin(dir);
+
+	ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
+
+	phys_world->convexSweepTest(&sphere, pos_from, pos_to, cb);
+	if (cb.hasHit())
+	{
+		//Is this a non static object?
+		GameObject *obj = static_cast<GameObject*>(cb.m_hitCollisionObject->getUserPointer());
+		if(obj != NULL){
+		cout << "Hit object!" << endl;
+			obj->apply_dmg(dmg);
+			if(obj->get_controllable() || obj->get_dead()){
+			float hit_force = 100.0f;
+			btVector3 force_dir = dir - pos_from.getOrigin();
+			btVector3 rel_pos = cb.m_hitPointWorld - obj->get_body()->getCenterOfMassPosition();
+				obj->get_body()->applyImpulse(force_dir.normalized() * hit_force, rel_pos);
+			}
+		}
+	}
+}
+
+void GameObject::apply_dmg(int dmg){
+	health -= dmg;
+	if(health < 0){
+		dead = true;
+	}
+}
+
+bool GameObject::get_controllable(){
+ 	return controllable;
+}
+
+bool GameObject::get_dead(){
+	return dead;
 }
 
 void GameObject::QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler)

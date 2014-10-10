@@ -119,11 +119,36 @@ int main(int argc, char *argv[]){
 		while( SDL_PollEvent( &event ) != 0 ){  
 			switch (event.type) {
 				case SDL_MOUSEBUTTONDOWN:
-				    /*
+					switch (event.button.button)
+					{
+						case SDL_BUTTON_LEFT:
+							{
+							SDL_Point offset = level->get_render_offset();                                                       
+							float x = (event.button.x - offset.x)/80.0f;
+							float y = (event.button.y - offset.y)/80.0f;
+                                                        player->attack(btVector3(x, y, 0), 10);
+							cout << "x: " << x << " y: " << y << endl;
+							break;
+							}
+						case SDL_BUTTON_RIGHT:
+							//SDL_ShowSimpleMessageBox(0, "Mouse", "Right button was pressed!", window);
+							break;
+						default:
+							//TODO perhaps use this for error messages?
+							//SDL_ShowSimpleMessageBox(0, "Mouse", "Some other button was pressed!", window);
+							break;
+					}
+					/*
 					off_x = - event.button.x;
 					off_y = - event.button.y;
 					*/
 					break;
+				/*
+				case SDL_MOUSEMOTION:
+					int mouseX = event.motion.x;
+					int mouseY = event.motion.y;
+					break;
+					*/
 				case SDL_KEYDOWN:
 					if(event.key.repeat){
 						// We don't want to handle key repeats

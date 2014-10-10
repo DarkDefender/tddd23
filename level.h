@@ -54,31 +54,31 @@ class Level {
 	vector<vector<LevelZone*>> l_zone_tiles;
 	SDL_Point render_offset, cur_tile;
 	float render_rot, world_scale;
-    list<GameObject*> obj_list;
+	list<GameObject*> obj_list;
 	GameObject* focus_obj;
-    vector<SDL_Point> prev_cam_vec;
+	vector<SDL_Point> prev_cam_vec;
 	unsigned int cam_vec_id, tile_w, tile_h;
 	SDL_Texture *level_texture;
 	SDL_Rect tile_dim;
-    
-    bool rotate_world;
 
-    //Bullet
+	bool rotate_world;
+
+	//Bullet
 	btBroadphaseInterface* broadphase;
 	btDefaultCollisionConfiguration* collisionConfiguration;
 	btCollisionDispatcher* dispatcher;
-    btSequentialImpulseConstraintSolver* solver;
+	btSequentialImpulseConstraintSolver* solver;
 	btDiscreteDynamicsWorld* dynamicsWorld;
 	btVector3 grav_vec;
 
 	btTriangleMesh* level_trimesh;
 	btCollisionShape *mTriMeshShape;
-    btRigidBody* levelRigidBody;
+	btRigidBody* levelRigidBody;
 
 	void setup_bullet_world();
 	void del_bullet_world();
 	void get_lvl_objs();
-    void create_terrain();
+	void create_terrain();
 
 	void update_offset();
 	void update_tile_index();
@@ -86,6 +86,7 @@ class Level {
 	Level(string level_file, SDL_Renderer *renderer);
 	~Level();
 	GameObject* get_player();
+	SDL_Point get_render_offset();
 	void update(float delta_s);
 	void toggle_rotate_world();
 	void draw_level(SDL_Renderer *renderer);

@@ -237,6 +237,10 @@ void Level::update_offset(){
 	render_offset.y /= 15;
 }
 
+SDL_Point Level::get_render_offset(){
+	return render_offset;
+}
+
 void Level::update_tile_index(){
 	//where are we?
 	cur_tile.x = abs(render_offset.x) / (tile_w * 10);
