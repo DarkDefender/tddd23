@@ -26,8 +26,10 @@ class GameObject {
 	bool godmode, inited, moving, jumping, controllable;
 	uint32_t spawn_x, spawn_y;
 	void clean_up();
+	void pre_init(string body_type);
 	public:
-	GameObject( string body_type, string tile_set, uint8_t health, uint32_t x, uint32_t y, bool is_controllable = false );
+	GameObject( string body_type, string tile_set, uint8_t health, float x, float y, bool is_controllable = false );
+	GameObject( string body_type, SDL_Texture *texture, uint8_t health, float x, float y, bool is_controllable = false );
 	~GameObject();
 	void init();
 	void set_renderer(SDL_Renderer *new_renderer);

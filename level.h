@@ -27,6 +27,7 @@ class LevelZone {
 	vector<vector<vector<uint32_t>>> level_tiles;  //Layer, y, x
 	vector<Tile> tile_tex;
 	vector<vector<SDL_Point>> zone_coll;
+	list<GameObject*> obj_list;
 
 	string zone_name;
 	unsigned int zone_tile_w, zone_tile_h, zone_w, zone_h;
@@ -43,6 +44,8 @@ class LevelZone {
 	void render_layers(SDL_Renderer *renderer, int off_x, int off_y);
 	void del_images();
 	void del_layers();
+	list<GameObject*> *get_objs();
+
 	SDL_Point get_zone_sizes();
 	~LevelZone();
 };
@@ -74,6 +77,7 @@ class Level {
 
 	void setup_bullet_world();
 	void del_bullet_world();
+	void get_lvl_objs();
     void create_terrain();
 
 	void update_offset();

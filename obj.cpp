@@ -6,6 +6,7 @@
 #include <math.h>  
 #include <iostream>
 #include "timer.h"
+#include "level.h"
 
 using namespace std;
 
@@ -13,19 +14,34 @@ unordered_map<string,btCollisionShape*> GameObject::obj_coll_shape;
 btDiscreteDynamicsWorld* GameObject::phys_world = NULL;
 SDL_Renderer* GameObject::renderer = NULL;
 
-GameObject::GameObject( string body_type, string tile_set, uint8_t health, uint32_t x, uint32_t y, bool is_controllable ){
+GameObject::GameObject( string body_type, string tile_set, uint8_t health, float x, float y, bool is_controllable ){
+	obj_name = tile_set;
+	texture = NULL;
+	controllable = is_controllable;
+	spawn_x = x;
+	spawn_y = y;
+	pre_init(body_type);
+}
+
+GameObject::GameObject( string body_type, SDL_Texture *new_tex, uint8_t health, float x, float y, bool is_controllable ){
+	texture = new_tex;
+	controllable = is_controllable;
+	//This is spawned by a level zone so convert the coords to bullet coords (world_scale)
+	spawn_x = x/80.0f;
+	spawn_y = y/80.0f;
+	pre_init(body_type);
+}
+
+void GameObject::pre_init(string body_type){
 	inited = false;
 	phys_body = NULL;
 	moving = false;
 	jumping = false;
-	controllable = is_controllable;
 	cur_move_speed = 0;
 	jump_vec.setZero();
 	move_vec.setZero();
 	old_move_vec.setZero();
 	adj_move_vec.setZero();
-	spawn_x = x;
-	spawn_y = y;
 	if(obj_coll_shape.count(body_type) == 0){
 		//TODO add proper shape creation based on string
 		if(body_type == "box"){
@@ -35,7 +51,6 @@ GameObject::GameObject( string body_type, string tile_set, uint8_t health, uint3
 		}
 	}
 	body_shape = obj_coll_shape[body_type];
-	obj_name = tile_set;
 
 	if(renderer != NULL && phys_world != NULL){
       //We have set all everything required to init!
@@ -75,8 +90,10 @@ void GameObject::init(){
 	//phys_body->setCcdSweptSphereRadius(0.2f);
 
 	phys_world->addRigidBody(phys_body);
-
-	texture = loadTexture(obj_name, renderer);
+        
+	if(texture == NULL){
+		texture = loadTexture(obj_name, renderer);
+	}
 }
 
 void GameObject::clean_up(){

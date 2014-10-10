@@ -73,21 +73,21 @@ Level::Level(string level_file, SDL_Renderer *renderer){
 	l_zone_tiles.push_back(lvl_vec);
     */
 
-    //Setup bullet world
+	//Setup bullet world
 	setup_bullet_world();
 
-    //Create a game object
+	//Create a game object
 	//TODO remember to free/delete this later
 	GameObject *player = new GameObject("circle", "circle.png", 10, 6, 10, true);
 	//Only need to set renderer and phys world once.
 	player->set_renderer(renderer);
 	player->set_phys_world(dynamicsWorld);
 	//Only need to call init for the first object created after renderer and phys world has been set
-	player->init();
-		
-	GameObject *box = new GameObject("box", "box.png", 10, 10, 10);
- 	obj_list.push_back(player);
-	obj_list.push_back(box);  
+	//player->init();
+
+	obj_list.push_back(player);
+
+	get_lvl_objs();
 
 	focus_obj = player;
 }
@@ -149,6 +149,24 @@ void Level::del_bullet_world(){
     delete dispatcher;
     delete collisionConfiguration;
     delete broadphase;
+}
+
+void Level::get_lvl_objs(){
+	for(unsigned int i = 0; i < l_zone_tiles.size(); i++){
+		for(unsigned int q = 0; q < l_zone_tiles[i].size(); q++){
+
+			if(l_zone_tiles[i][q] == NULL){
+				continue;
+			}
+			list<GameObject*> *zone_objs = l_zone_tiles[i][q]->get_objs();
+			obj_list.splice(obj_list.end(), *zone_objs);
+			zone_objs->clear();
+		}
+	}
+	//Init all objs
+	for (auto it = obj_list.begin(); it != obj_list.end(); it++){
+		(*it)->init();
+	}
 }
 
 void Level::create_terrain(){
@@ -222,8 +240,8 @@ void Level::update_offset(){
 void Level::update_tile_index(){
 	//where are we?
 	cur_tile.x = abs(render_offset.x) / (tile_w * 10);
-    cur_tile.y = abs(render_offset.y) / (tile_h * 10);
-    //cerr << cur_tile.x << " y: " << cur_tile.y << endl;
+	cur_tile.y = abs(render_offset.y) / (tile_h * 10);
+	//cerr << cur_tile.x << " y: " << cur_tile.y << endl;
 
 }
 
@@ -233,7 +251,7 @@ void Level::draw_level(SDL_Renderer *renderer){
 		return;
 	}
 	update_offset();
-    update_tile_index();
+	update_tile_index();
 
 	if ( level_texture == NULL ){
 		//TODO calc the exact needed size
@@ -428,13 +446,16 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 			}
 		}
 	}
-    //Load all objects for this zone
+	//Load all objects for this zone
 	for (pugi::xml_node node = map.child("objectgroup"); node; node = node.next_sibling("objectgroup")) {
 		string node_name( node.attribute("name").value() );
 		if( node_name == "collision" ){
 			parse_collison_obj(node, 0);
 		} else {
-			continue;
+			for(pugi::xml_node obj = node.first_child(); obj; obj = obj.next_sibling()){
+				obj_list.push_back(new GameObject("box", tile_tex.at(obj.attribute("gid").as_int() - 1).texture, 10,
+							obj.attribute("x").as_float(), obj.attribute("y").as_float())); 
+			}
 		}
 	}
 }
@@ -567,6 +588,10 @@ void LevelZone::del_layers(){
           SDL_DestroyTexture( *it );
 	 }
      level_zone_layers.clear();
+}
+
+list<GameObject*> *LevelZone::get_objs(){
+	return &obj_list;	
 }
 
 SDL_Point LevelZone::get_zone_sizes(){
