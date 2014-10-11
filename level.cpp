@@ -237,8 +237,21 @@ void Level::update_offset(){
 	render_offset.y /= 15;
 }
 
-SDL_Point Level::get_render_offset(){
-	return render_offset;
+btVector3 Level::screen_to_game_coords(float x, float y){
+	float g_x = (x - render_offset.x)/world_scale;
+	float g_y = (y - render_offset.y)/world_scale;
+	btVector3 vec = {g_x, g_y, 0};
+	if(render_rot != 0){
+		float rad =  (render_rot/360.0f)*M_PI*2.0f;
+		float var = WIDTH/2;
+		float var2 = HEIGHT/2;
+		vec = {x - var, y - var2, 0};
+		vec = {vec.getX() + (var*cos(rad) - var2*sin(rad)), vec.getY() + (var2*cos(rad) + var*sin(rad)), 0};
+		vec = vec.rotate(btVector3(0,0,1), -rad);
+		vec = {vec.getX() - render_offset.x, vec.getY() - render_offset.y, 0};
+		vec /= 80.0f;
+	}
+	return vec;
 }
 
 void Level::update_tile_index(){
@@ -296,6 +309,11 @@ void Level::update(float delta_s){
 		grav_vec = grav_vec.rotate(btVector3(0,0,1),0.07*delta_s);
 
 		render_rot -= 4 * delta_s;
+		if(render_rot < -360){
+			render_rot += 360;
+		} else if(render_rot > 360){
+			render_rot -= 360;
+		}
 		dynamicsWorld->setGravity(grav_vec);
 	}
 	dynamicsWorld->stepSimulation(delta_s);

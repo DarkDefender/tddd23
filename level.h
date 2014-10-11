@@ -86,7 +86,7 @@ class Level {
 	Level(string level_file, SDL_Renderer *renderer);
 	~Level();
 	GameObject* get_player();
-	SDL_Point get_render_offset();
+	btVector3 screen_to_game_coords(float x, float y);
 	void update(float delta_s);
 	void toggle_rotate_world();
 	void draw_level(SDL_Renderer *renderer);

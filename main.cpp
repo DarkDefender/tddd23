@@ -123,11 +123,8 @@ int main(int argc, char *argv[]){
 					{
 						case SDL_BUTTON_LEFT:
 							{
-							SDL_Point offset = level->get_render_offset();                                                       
-							float x = (event.button.x - offset.x)/80.0f;
-							float y = (event.button.y - offset.y)/80.0f;
-                                                        player->attack(btVector3(x, y, 0), 10);
-							cout << "x: " << x << " y: " << y << endl;
+							btVector3 vec = level->screen_to_game_coords(event.button.x, event.button.y);
+                                                        player->attack(vec , 10);
 							break;
 							}
 						case SDL_BUTTON_RIGHT:
