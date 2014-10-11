@@ -237,7 +237,7 @@ void Text_box::create_text_shadow(bool outline){
 	if(outline){
 		for(int i = -1; i < 2; i++){
 			for(int j = -1; j < 2; j++){
-				dest.x = i;
+				dest.x = 1 + i;
 				dest.y = j;
 
 				SDL_RenderCopy(renderer,texture, NULL, &dest);
@@ -254,7 +254,8 @@ void Text_box::create_text_shadow(bool outline){
 	//Reset the blendmode
 	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);  
 
-	SDL_RenderCopy(renderer,texture, NULL, NULL);
+ 	dest = { 1, 0, text_rect.w, text_rect.h };
+	SDL_RenderCopy(renderer,texture, NULL, &dest);
 
 	SDL_SetRenderTarget(renderer, NULL); //NULL SETS TO DEFAULT
 
