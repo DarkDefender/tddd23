@@ -361,7 +361,7 @@ void GameObject::attack(btVector3 dir, int dmg){
 		GameObject *obj = static_cast<GameObject*>(cb.m_hitCollisionObject->getUserPointer());
 		if(obj != NULL){
 			obj->apply_dmg(dmg);
-			if(obj->get_controllable() || obj->get_dead()){
+			if(!obj->get_controllable() || obj->get_dead()){
 			float hit_force = 100.0f;
 			btVector3 force_dir = dir - pos_from.getOrigin();
 			btVector3 rel_pos = cb.m_hitPointWorld - obj->get_body()->getCenterOfMassPosition();
@@ -373,7 +373,7 @@ void GameObject::attack(btVector3 dir, int dmg){
 
 void GameObject::apply_dmg(int dmg){
 	health -= dmg;
-	if(health < 0){
+	if(health <= 0){
 		dead = true;
 	}
 }
