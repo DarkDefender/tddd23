@@ -78,7 +78,7 @@ Level::Level(string level_file, SDL_Renderer *renderer){
 
 	//Create a game object
 	//TODO remember to free/delete this later
-	GameObject *player = new GameObject("circle", "circle.png", 10, 6, 10, true);
+	GameObject *player = new GameObject("circle", "circle.png", 10, 6, 10, 0, true);
 	//Only need to set renderer and phys world once.
 	player->set_renderer(renderer);
 	player->set_phys_world(dynamicsWorld);
@@ -242,7 +242,7 @@ btVector3 Level::screen_to_game_coords(float x, float y){
 	float g_y = (y - render_offset.y)/world_scale;
 	btVector3 vec = {g_x, g_y, 0};
 	if(render_rot != 0){
-		float rad =  (render_rot/360.0f)*M_PI*2.0f;
+		float rad =  (render_rot/180.0f)*M_PI;
 		float var = WIDTH/2;
 		float var2 = HEIGHT/2;
 		vec = {x - var, y - var2, 0};
@@ -476,7 +476,7 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 		} else {
 			for(pugi::xml_node obj = node.first_child(); obj; obj = obj.next_sibling()){
 				obj_list.push_back(new GameObject("box", tile_tex.at(obj.attribute("gid").as_int() - 1).texture, 10,
-							obj.attribute("x").as_float(), obj.attribute("y").as_float())); 
+							obj.attribute("x").as_float(), obj.attribute("y").as_float(), obj.attribute("rotation").as_float())); 
 			}
 		}
 	}

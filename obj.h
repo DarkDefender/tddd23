@@ -18,19 +18,18 @@ class GameObject {
 	Timer jump_timer, move_timer;	
 
 	btVector3 move_vec, old_move_vec, adj_move_vec, jump_vec;
-	float cur_move_speed;
+	float cur_move_speed, spawn_rot, spawn_x, spawn_y;
 
 	static unordered_map<string,btCollisionShape*> obj_coll_shape;
 	static btDiscreteDynamicsWorld* phys_world;
 	static SDL_Renderer *renderer;
 	bool godmode, inited, moving, jumping, controllable, dead;
-	uint32_t spawn_x, spawn_y;
 	int health;
 	void clean_up();
 	void pre_init(string body_type);
 	public:
-	GameObject( string body_type, string tile_set, uint8_t health, float x, float y, bool is_controllable = false );
-	GameObject( string body_type, SDL_Texture *texture, uint8_t health, float x, float y, bool is_controllable = false );
+	GameObject( string body_type, string tile_set, uint8_t health, float x, float y, float rot, bool is_controllable = false );
+	GameObject( string body_type, SDL_Texture *texture, uint8_t health, float x, float y, float rot, bool is_controllable = false );
 	~GameObject();
 	void init();
 	void set_renderer(SDL_Renderer *new_renderer);
