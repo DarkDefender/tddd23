@@ -27,6 +27,7 @@ GameObject::GameObject( string body_type, string tile_set, uint8_t start_health,
 }
 
 GameObject::GameObject( string body_type, SDL_Texture *new_tex, uint8_t start_health, float x, float y, float rot_deg, bool is_controllable ){
+	obj_name = "";
 	texture = new_tex;
 	controllable = is_controllable;
 	//This is spawned by a level zone so convert the coords to bullet coords (world_scale)
@@ -50,6 +51,7 @@ void GameObject::pre_init(string body_type){
 	adj_move_vec.setZero();
 	if(obj_coll_shape.count(body_type) == 0){
 		//TODO add proper shape creation based on string
+		//TODO clean up shape objects when they are not needed anymore
 		if(body_type == "box"){
 			obj_coll_shape[body_type] = new btBoxShape(btVector3(0.5f,0.5f,0.5f));
 		} else {
@@ -114,8 +116,13 @@ void GameObject::clean_up(){
 }
 
 GameObject::~GameObject(){
-	SDL_DestroyTexture( texture );
-	clean_up();
+	if(obj_name != ""){
+		//We created the texture, we will free it
+		SDL_DestroyTexture( texture );
+	}
+	if( inited ){
+		clean_up();
+	}
 }
 
 void GameObject::set_renderer(SDL_Renderer *new_renderer){
