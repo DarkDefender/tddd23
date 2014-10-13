@@ -298,7 +298,8 @@ void GameObject::stop_jump(){
 		}
 
 		//Only try to negate the current jumping dir if we are traveling in that dir
-		if(phys_body->getLinearVelocity().dot(jump_vec) > 0.1f){ 
+		cout << phys_body->getLinearVelocity().angle(jump_vec) << endl;
+		if(phys_body->getLinearVelocity().angle(jump_vec) < 0.7f){ 
 			phys_body->applyCentralImpulse(-jump_vec * (3.0f/delta) );
 		}
 		jump_timer.stop();
