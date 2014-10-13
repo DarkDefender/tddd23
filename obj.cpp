@@ -1,6 +1,7 @@
 #include <SDL2/SDL.h>
 #include <btBulletDynamicsCommon.h>
 #include <unordered_map>
+#include <vector>
 #include "sdl_h_func.h"
 #include "obj.h"
 #include <math.h>  
@@ -19,22 +20,9 @@ GameObject::GameObject(){
 	inited = false;
 }
 
-GameObject::GameObject( string body_type, string tile_set, uint8_t start_health, float x, float y, float rot_deg, bool is_controllable ){
-	obj_name = tile_set;
-	texture = NULL;
-	controllable = is_controllable;
-	spawn_x = x;
-	spawn_y = y;
-	(rot_deg/180.0f)*M_PI;
-	health = start_health;
-	dead = false;
-	pre_init(body_type);
-}
-
-GameObject::GameObject( string body_type, Tile tile, uint8_t start_health, float x, float y, float rot_deg, bool is_controllable ){
-	obj_name = "";
-	texture = tile.texture;
-	tex_rect = tile.rect;
+GameObject::GameObject( string body_type, Tile new_tile, vector<Tile> *tiles_ptr, uint8_t start_health, float x, float y, float rot_deg, bool is_controllable ){
+    tile = new_tile;
+    tiles = tiles_ptr;
 	controllable = is_controllable;
 	//This is spawned by a level zone so convert the coords to bullet coords (world_scale)
 	spawn_x = x/80.0f;
@@ -113,13 +101,6 @@ void GameObject::init(){
 	} else {
 		phys_world->addRigidBody(phys_body, COL_OBJ, objCollidesWith);
 	}
-
-	if(texture == NULL){
-		texture = loadTexture(obj_name, renderer);
-		int w, h;
-		SDL_QueryTexture(texture, NULL, NULL, &w, &h);
-		tex_rect = {0, 0, w, h};
-	}
 }
 
 void GameObject::clean_up(){
@@ -129,10 +110,6 @@ void GameObject::clean_up(){
 }
 
 GameObject::~GameObject(){
-	if(obj_name != ""){
-		//We created the texture, we will free it
-		SDL_DestroyTexture( texture );
-	}
 	if( inited ){
 		clean_up();
 	}
@@ -367,6 +344,25 @@ void GameObject::update(){
 		jumping = false;
 		jump_timer.stop();
 	}
+	if(tile.animated){
+		if( !tile.ani_timer.isStarted() ){
+			tile.ani_timer.start();
+		} else {
+			uint32_t ticks = tile.ani_timer.getTicks();
+			uint32_t cur_index = tile.ani_index;
+			if( ticks > tile.ani_tile_time[tile.ani_index] ){
+				//(Re)start the timer
+				tile.ani_timer.start();
+				cur_index++;
+				if(cur_index >= tile.ani_tile_no.size()){
+					cur_index = 0;
+				}
+				tile.ani_index = cur_index;
+			}
+		}
+		tile.texture = tiles->at(tile.ani_tile_no[tile.ani_index] - 1).texture;
+		tile.rect = tiles->at(tile.ani_tile_no[tile.ani_index] - 1).rect;
+	}
 }
 
 void GameObject::attack(btVector3 dir, int dmg){
@@ -429,10 +425,10 @@ void GameObject::render_obj(int off_x, int off_y){
 	QuaternionToEulerXYZ(trans.getRotation(),rot_vec);
 	float rot = (rot_vec.getZ() / M_PI) * 180.0f;
 
-	dest.x = off_x - tex_rect.w/2 + trans.getOrigin().getX() * 80;
-	dest.y = off_y - tex_rect.h/2 + trans.getOrigin().getY() * 80;
-	dest.w = tex_rect.w;
-	dest.h = tex_rect.h;
+	dest.x = off_x - tile.rect.w/2 + trans.getOrigin().getX() * 80;
+	dest.y = off_y - tile.rect.h/2 + trans.getOrigin().getY() * 80;
+	dest.w = tile.rect.w;
+	dest.h = tile.rect.h;
 
-	SDL_RenderCopyEx(renderer, texture, &tex_rect, &dest, rot, NULL, SDL_FLIP_NONE);
+	SDL_RenderCopyEx(renderer, tile.texture, &tile.rect, &dest, rot, NULL, SDL_FLIP_NONE);
 }

@@ -560,7 +560,7 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 					}
 				}
 
-				obj_list.push_back(new GameObject(body, tile_tex.at(obj.attribute("gid").as_int() - 1), 10,
+				obj_list.push_back(new GameObject(body, tile_tex.at(obj.attribute("gid").as_int() - 1), &tile_tex, 10,
 							obj.attribute("x").as_float(), obj.attribute("y").as_float(), obj.attribute("rotation").as_float(), contr)); 
 			}
 		}
@@ -591,9 +591,9 @@ SDL_Texture *LevelZone::get_layer(unsigned int i, SDL_Renderer *renderer){
 						if( !tile->ani_timer.isStarted() ){
 							tile->ani_timer.start();
 						} else {
-							uint32_t sec = tile->ani_timer.getTicks();
+							uint32_t ticks = tile->ani_timer.getTicks();
 							uint32_t cur_index = tile->ani_index;
-							if( sec > tile->ani_tile_time[tile->ani_index] ){
+							if( ticks > tile->ani_tile_time[tile->ani_index] ){
 								//(Re)start the timer
 								tile->ani_timer.start();
 								cur_index++;

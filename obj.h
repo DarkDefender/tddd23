@@ -4,6 +4,7 @@
 #include <SDL2/SDL.h>
 #include <btBulletDynamicsCommon.h>
 #include <unordered_map>
+#include <vector>
 #include "sdl_h_func.h"
 #include <math.h> 
 #include "timer.h"
@@ -25,10 +26,9 @@ static const int objCollidesWith = COL_PLAYER | COL_WALL | COL_NPC | COL_OBJ;
 class GameObject {
 	btRigidBody* phys_body;
 	btCollisionShape* body_shape;
-	SDL_Rect tex_rect;
 
-	string obj_name;
-	SDL_Texture *texture;
+    Tile tile;
+    vector<Tile> *tiles;
 
 	Timer jump_timer, move_timer;	
 
@@ -44,8 +44,7 @@ class GameObject {
 	void pre_init(string body_type);
 	public:
 	GameObject();
-	GameObject( string body_type, string tile_set, uint8_t health, float x, float y, float rot, bool is_controllable = false );
-	GameObject( string body_type, Tile tile, uint8_t health, float x, float y, float rot, bool is_controllable = false );
+	GameObject( string body_type, Tile tile, vector<Tile> *tiles_ptr, uint8_t health, float x, float y, float rot, bool is_controllable = false );
 	~GameObject();
 	void init();
 	void set_renderer(SDL_Renderer *new_renderer);
