@@ -92,7 +92,11 @@ int main(int argc, char *argv[]){
 	text_list.push_back(b1);
 	text_list.push_back(b2);
 
-    Level *level = new Level("level.tmx", renderer);
+    list<string> level_list;
+	level_list.push_back("tutor.tmx");
+	level_list.push_back("level.tmx");
+
+    Level *level = new Level(level_list.front(), renderer);
 
 	//btRigidBody *fallRigidBody = level->get_player()->get_body();
 
@@ -123,9 +127,9 @@ int main(int argc, char *argv[]){
 					{
 						case SDL_BUTTON_LEFT:
 							{
-							btVector3 vec = level->screen_to_game_coords(event.button.x, event.button.y);
-                                                        player->attack(vec , 10);
-							break;
+								btVector3 vec = level->screen_to_game_coords(event.button.x, event.button.y);
+								player->attack(vec , 10);
+								break;
 							}
 						case SDL_BUTTON_RIGHT:
 							//SDL_ShowSimpleMessageBox(0, "Mouse", "Right button was pressed!", window);
@@ -159,6 +163,13 @@ int main(int argc, char *argv[]){
 						//case SDLK_DOWN:  f += 0.5f; fallRigidBody->setFriction(f); break;
 						//case SDLK_SPACE: f -= 0.5f; fallRigidBody->setFriction(f); break;
 						case SDLK_SPACE: level->toggle_rotate_world(); break;
+						case SDLK_RETURN:
+										 if(level->get_win_prop() == "button"){
+											level_list.pop_front();
+											delete level;
+											level = new Level(level_list.front(), renderer);
+											player = level->get_player();
+										 }
 					}
 					break;
  				case SDL_KEYUP:

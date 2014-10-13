@@ -63,6 +63,8 @@ class Level {
 
 	bool rotate_world;
 
+    string win_prop;
+
 	//Bullet
 	btBroadphaseInterface* broadphase;
 	btDefaultCollisionConfiguration* collisionConfiguration;
@@ -85,6 +87,7 @@ class Level {
 	public:
 	Level(string level_file, SDL_Renderer *renderer);
 	~Level();
+	string get_win_prop();
 	GameObject* get_player();
 	btVector3 screen_to_game_coords(float x, float y);
 	void update(float delta_s);

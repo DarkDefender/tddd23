@@ -44,6 +44,18 @@ Level::Level(string level_file, SDL_Renderer *renderer){
 	tile_h = map.attribute("tileheight").as_int();  
 	level_w = map.attribute("width").as_int();
 	level_h = map.attribute("height").as_int();
+	
+	//Load properties
+	pugi::xml_node prop = map.child("properties");
+	if (prop){
+		for(pugi::xml_node pry = prop.first_child(); pry; pry = pry.next_sibling()){
+			string prop_name( pry.attribute("name").value() );
+			if( prop_name == "win_prop" ){
+				win_prop = pry.attribute("value").value();
+			}
+		}
+	}
+	
 	//load in the level tile numbers
 	
 	int i = 1;
@@ -59,7 +71,7 @@ Level::Level(string level_file, SDL_Renderer *renderer){
 			if(tile_no == "0"){
 				tile_vec.push_back(NULL);
 			} else {
-            tile_vec.push_back(new LevelZone(tile_no + ".tmx", renderer));
+				tile_vec.push_back(new LevelZone(tile_no + ".tmx", renderer));
 			}
         }
         i++;
@@ -78,7 +90,7 @@ Level::Level(string level_file, SDL_Renderer *renderer){
 
 	//Create a game object
 	//TODO remember to free/delete this later
-	GameObject *player = new GameObject("circle", "circle.png", 10, 6, 10, 0, true);
+	GameObject *player = new GameObject();
 	//Only need to set renderer and phys world once.
 	player->set_renderer(renderer);
 	player->set_phys_world(dynamicsWorld);
@@ -99,9 +111,28 @@ Level::~Level(){
 		SDL_DestroyTexture( level_texture );
 	}
 
-    del_bullet_world();
+	for (auto it = obj_list.begin(); it != obj_list.end(); ++it){
+		delete *it;
+	}
+	
+	//TODO there must be a better way to rester the phys world and render pointers...
+	GameObject *player = new GameObject();
+	player->set_renderer(NULL);
+	player->set_phys_world(NULL);
+	delete player;
 
-	//TODO clean up object list & level zones
+	del_bullet_world();
+
+	for (auto it = l_zone_tiles.begin(); it != l_zone_tiles.end(); ++it){
+		for (auto it2 = (*it).begin(); it2 != (*it).end(); ++it2){
+			delete *it2;
+		}
+	}
+
+}
+
+string Level::get_win_prop(){
+	return win_prop;
 }
 
 void Level::setup_bullet_world(){
@@ -642,4 +673,7 @@ SDL_Point LevelZone::get_zone_sizes(){
 
 LevelZone::~LevelZone(){
 	del_layers();
+	for (auto it = obj_list.begin(); it != obj_list.end(); ++it){
+		delete *it;
+	}
 }

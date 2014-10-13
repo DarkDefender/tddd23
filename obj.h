@@ -28,6 +28,7 @@ class GameObject {
 	void clean_up();
 	void pre_init(string body_type);
 	public:
+	GameObject();
 	GameObject( string body_type, string tile_set, uint8_t health, float x, float y, float rot, bool is_controllable = false );
 	GameObject( string body_type, SDL_Texture *texture, uint8_t health, float x, float y, float rot, bool is_controllable = false );
 	~GameObject();
