@@ -163,7 +163,7 @@ void Level::setup_bullet_world(){
 	btRigidBody::btRigidBodyConstructionInfo
 		levelRigidBodyCI(0, levelMotionState, mTriMeshShape, btVector3(0, 0, 0));
 	levelRigidBody = new btRigidBody(levelRigidBodyCI);
-	dynamicsWorld->addRigidBody(levelRigidBody);
+	dynamicsWorld->addRigidBody(levelRigidBody, COL_WALL, wallCollidesWith);
 }
 
 void Level::del_bullet_world(){
@@ -312,17 +312,28 @@ void Level::draw_level(SDL_Renderer *renderer){
 		level_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 800, 800);
 		SDL_SetTextureBlendMode(level_texture, SDL_BLENDMODE_BLEND);
 	}
+	
+    //update animated textures
+	for(int i = 0; i < 2; i++){
+		for(int j = 0; j < 2; j++){
+			LevelZone* zone = l_zone_tiles.at(cur_tile.y + i).at(cur_tile.x + j);
+			if(zone != NULL){
+				zone->update_textures(renderer);
+			}
+		}
+	} 
 
 	SDL_SetRenderTarget(renderer, level_texture);
 	/* Clear the background to background color */
 	SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 	SDL_RenderClear(renderer);
-
+    
+	//Render bg
 	for(int i = 0; i < 2; i++){
 		for(int j = 0; j < 2; j++){
 			LevelZone* zone = l_zone_tiles.at(cur_tile.y + i).at(cur_tile.x + j);
 			if(zone != NULL){
-				zone->render_layers(renderer, (cur_tile.x + j) * tile_w * 10 + render_offset.x+80, (cur_tile.y + i) * tile_h * 10 + render_offset.y+160);
+				zone->render_layer(0, renderer, (cur_tile.x + j) * tile_w * 10 + render_offset.x+80, (cur_tile.y + i) * tile_h * 10 + render_offset.y+160);
 			}
 		}
 	}
@@ -330,6 +341,16 @@ void Level::draw_level(SDL_Renderer *renderer){
 	for (list<GameObject*>::iterator it = obj_list.begin(); it != obj_list.end(); it++){
 		(*it)->render_obj(render_offset.x+80, render_offset.y+160);
 		(*it)->update();
+	}
+
+    //Render fg
+	for(int i = 0; i < 2; i++){
+		for(int j = 0; j < 2; j++){
+			LevelZone* zone = l_zone_tiles.at(cur_tile.y + i).at(cur_tile.x + j);
+			if(zone != NULL){
+				zone->render_layer(1, renderer, (cur_tile.x + j) * tile_w * 10 + render_offset.x+80, (cur_tile.y + i) * tile_h * 10 + render_offset.y+160);
+			}
+		}
 	}
 	SDL_SetRenderTarget(renderer, NULL);
 	SDL_Rect dest = {-80,-160,800,800};
@@ -404,6 +425,14 @@ void LevelZone::parse_collison_obj( pugi::xml_node node, int tile_id ){
 	}
 }
 
+void LevelZone::parse_ani_frames( pugi::xml_node node, int tile_id, int first_id ){
+	tile_tex[tile_id - 1].animated = true;
+	for (pugi::xml_node frame = node.child("frame"); frame; frame = frame.next_sibling("frame")) {
+		tile_tex[tile_id - 1].ani_tile_no.push_back(frame.attribute("tileid").as_int() + first_id);
+		tile_tex[tile_id - 1].ani_tile_time.push_back(frame.attribute("duration").as_int());
+	}
+}
+
 LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 	zone_name = level_zone_file;
 	//Only have one copy of the same zone loaded
@@ -467,6 +496,9 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 				if ( node2.child("objectgroup") ){
 					parse_collison_obj(node2.child("objectgroup"), first_id + node2.attribute("id").as_int());
 				}
+				if( node2.child("animation") ) {
+					parse_ani_frames(node2.child("animation"), first_id + node2.attribute("id").as_int(), first_id);
+				}
 				//We must have already loaded the image for this tile...
 				continue;
 			}
@@ -502,6 +534,9 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 				if ( node2.child("objectgroup") ){
 					parse_collison_obj(node2.child("objectgroup"), first_id + node2.attribute("id").as_int());
 				}
+				if( node2.child("animation") ) {
+					parse_ani_frames(node2.child("animation"), first_id + node2.attribute("id").as_int(), first_id);
+				}
 			}
 		}
 	}
@@ -525,16 +560,14 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 					}
 				}
 
-				obj_list.push_back(new GameObject(body, tile_tex.at(obj.attribute("gid").as_int() - 1).texture, 10,
+				obj_list.push_back(new GameObject(body, tile_tex.at(obj.attribute("gid").as_int() - 1), 10,
 							obj.attribute("x").as_float(), obj.attribute("y").as_float(), obj.attribute("rotation").as_float(), contr)); 
 			}
 		}
 	}
 }
 
-vector<SDL_Texture *> LevelZone::get_layers(SDL_Renderer *renderer){
-	if( level_zone_layers.empty() ){
-		for (unsigned int i = 0; i < level_tiles.size(); i++){
+SDL_Texture *LevelZone::get_layer(unsigned int i, SDL_Renderer *renderer){
 			SDL_Texture *texture;
 			texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, zone_tile_w * zone_w, zone_tile_h * zone_h);
 			SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
@@ -542,6 +575,8 @@ vector<SDL_Texture *> LevelZone::get_layers(SDL_Renderer *renderer){
 			SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
 			SDL_RenderClear(renderer);
             
+            bool animated_layer = false;
+
 			for (unsigned int y = 0; y < level_tiles[i].size(); y++){
 				for (unsigned int x = 0; x < level_tiles[i][y].size(); x++){
                     unsigned int index = level_tiles[i][y][x];
@@ -549,16 +584,49 @@ vector<SDL_Texture *> LevelZone::get_layers(SDL_Renderer *renderer){
 						//Empty tile
 						continue;
 					}
-					SDL_Rect dest =  tile_tex[index -1].rect;
+					Tile *tile = &tile_tex[index -1];
+
+					if(tile->animated){
+						animated_layer = true;
+						if( !tile->ani_timer.isStarted() ){
+							tile->ani_timer.start();
+						} else {
+							uint32_t sec = tile->ani_timer.getTicks();
+							uint32_t cur_index = tile->ani_index;
+							if( sec > tile->ani_tile_time[tile->ani_index] ){
+								//(Re)start the timer
+								tile->ani_timer.start();
+								cur_index++;
+								if(cur_index >= tile->ani_tile_no.size()){
+									cur_index = 0;
+								}
+								tile->ani_index = cur_index;
+							}
+						}
+						tile = &tile_tex.at(tile->ani_tile_no[tile->ani_index] - 1);
+					}
+
+					SDL_Rect dest =  tile->rect;
 					dest.x = x * zone_tile_w;
 					//Because we want the origin of the tile to be at the bottom left of the tile, we have to add an offset here
-					dest.y = (y + 1) * zone_tile_h - tile_tex[index -1].rect.h;
-					SDL_RenderCopy(renderer, tile_tex[index -1].texture, &tile_tex[index -1].rect, &dest);
+					dest.y = (y + 1) * zone_tile_h - tile->rect.h;
+					SDL_RenderCopy(renderer, tile->texture, &tile->rect, &dest);
 				}
 			}
-			level_zone_layers.push_back(texture);
+			if(layer_ani.size() == i){
+				//we haven't populated the vector yet
+				layer_ani.push_back(animated_layer);
+			}
+
 			// Change the target back to the default and then render the aux
 			SDL_SetRenderTarget(renderer, NULL); //NULL SETS TO DEFAULT
+			return texture;
+}
+
+vector<SDL_Texture *> LevelZone::get_layers(SDL_Renderer *renderer){
+	if( level_zone_layers.empty() ){
+		for (unsigned int i = 0; i < level_tiles.size(); i++){
+			level_zone_layers.push_back(get_layer(i, renderer));
 		}
 	}
 	return level_zone_layers;
@@ -631,7 +699,34 @@ SDL_Texture *LevelZone::get_coll_layer(SDL_Renderer *renderer){
 	return texture;
 }
 
+void LevelZone::update_textures(SDL_Renderer *renderer){
+    //Update animated layers
+	for(unsigned int i = 0; i < layer_ani.size(); i++){
+		if( layer_ani[i] ){
+			SDL_DestroyTexture(level_zone_layers[i]);
+			level_zone_layers[i] = get_layer(i, renderer);
+		}
+	}
+
+}
+
 void LevelZone::render_layers(SDL_Renderer *renderer, int off_x, int off_y){
+	if( level_zone_layers.empty() ){
+		get_layers(renderer);
+		get_coll_layer(renderer);
+	} 
+
+	SDL_Rect dest;
+	dest.x = off_x;
+	dest.y = off_y;
+	dest.w = zone_tile_w * zone_w;
+	dest.h = zone_tile_h * zone_h;
+	for (auto it = level_zone_layers.begin(); it != level_zone_layers.end(); ++it){
+		SDL_RenderCopy(renderer, *it, NULL, &dest);
+	}
+}
+
+void LevelZone::render_layer(unsigned int index, SDL_Renderer *renderer, int off_x, int off_y){
 	if( level_zone_layers.empty() ){
 		get_layers(renderer);
 		get_coll_layer(renderer);
@@ -641,8 +736,10 @@ void LevelZone::render_layers(SDL_Renderer *renderer, int off_x, int off_y){
 	dest.y = off_y;
 	dest.w = zone_tile_w * zone_w;
 	dest.h = zone_tile_h * zone_h;
-	for (auto it = level_zone_layers.begin(); it != level_zone_layers.end(); ++it){
-		SDL_RenderCopy(renderer, *it, NULL, &dest);
+	if( index < level_zone_layers.size() ){
+		SDL_RenderCopy(renderer, level_zone_layers[index], NULL, &dest);
+	} else {
+		cerr << "Wrong index to render_layer: " << index << endl;
 	}
 }
 
@@ -656,10 +753,10 @@ void LevelZone::del_images(){
 
 void LevelZone::del_layers(){
 	//Clean up all layer textures
-	 for (auto it = level_zone_layers.begin(); it != level_zone_layers.end(); ++it){
-          SDL_DestroyTexture( *it );
-	 }
-     level_zone_layers.clear();
+	for (auto it = level_zone_layers.begin(); it != level_zone_layers.end(); ++it){
+		SDL_DestroyTexture( *it );
+	}
+	level_zone_layers.clear();
 }
 
 list<GameObject*> *LevelZone::get_objs(){

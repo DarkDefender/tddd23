@@ -35,6 +35,43 @@ void cleanup(int exitcode){
 	exit(exitcode);
 }
 
+//TODO redo this in a better way
+void change_lvl_ani(SDL_Renderer *renderer, list<Text_box*> text_object_list, Level *level, bool fade_in){
+	Timer fps_cap_timer, timer;
+	bool done = false;
+	float x = 1, y = 1;
+    timer.start();
+
+	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+	while( !done ){
+        //(Re)start the fps cap timer
+		fps_cap_timer.start();
+		level->draw_level(renderer);
+
+		for (list<Text_box*>::iterator it = text_object_list.begin(); it != text_object_list.end(); it++){
+			(*it)->render_text();
+		}
+		
+		if(fade_in){
+			SDL_SetRenderDrawColor(renderer,0,0,0, 255 * timer.delta_s());
+		} else {
+			SDL_SetRenderDrawColor(renderer,0,0,0, 255 - 255 * timer.delta_s());
+		}
+		SDL_RenderFillRect(renderer, NULL);
+
+		SDL_RenderPresent(renderer);
+
+		//Cap framerate
+		int frame_ticks = fps_cap_timer.getTicks();
+		if( frame_ticks < SCREEN_TICKS_PER_FRAME - frame_ticks){
+			SDL_Delay( SCREEN_TICKS_PER_FRAME - frame_ticks );
+		}
+		if(timer.delta_s() > 1){
+			done = true;
+		}
+	}
+}
+
 void update_screen(SDL_Renderer *renderer, list<Text_box*> text_object_list, Level *level){
 
 	level->draw_level(renderer);
@@ -109,14 +146,10 @@ int main(int argc, char *argv[]){
 	//fallRigidBody->applyCentralImpulse(force);
 
 	//Setup timer
-    Timer fps_timer;
 	Timer fps_cap_timer;
 	bool done = false;
-    int counted_frames = 0;
-	fps_timer.start();
 
 	while ( ! done ) {
-
         //(Re)start the fps cap timer
 		fps_cap_timer.start();
 
@@ -165,10 +198,12 @@ int main(int argc, char *argv[]){
 						case SDLK_SPACE: level->toggle_rotate_world(); break;
 						case SDLK_RETURN:
 										 if(level->get_win_prop() == "button"){
+											change_lvl_ani(renderer, text_list, level, true);
 											level_list.pop_front();
 											delete level;
 											level = new Level(level_list.front(), renderer);
 											player = level->get_player();
+											change_lvl_ani(renderer, text_list, level, false);
 										 }
 					}
 					break;
@@ -188,14 +223,7 @@ int main(int argc, char *argv[]){
 					break;
 			}
 		}
-		//Calculate and correct fps
-		float avg_fps = counted_frames / fps_timer.delta_s();
-		if( avg_fps > 2000000 ){
-			avg_fps = 0;
-		}
-
 		update_screen(renderer, text_list, level);
-        ++counted_frames;
 
 		//Cap framerate
 		int frame_ticks = fps_cap_timer.getTicks();

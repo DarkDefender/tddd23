@@ -6,7 +6,7 @@
 #include <math.h>  
 #include <iostream>
 #include "timer.h"
-#include "level.h"
+#include "tile.h"
 
 using namespace std;
 
@@ -31,9 +31,10 @@ GameObject::GameObject( string body_type, string tile_set, uint8_t start_health,
 	pre_init(body_type);
 }
 
-GameObject::GameObject( string body_type, SDL_Texture *new_tex, uint8_t start_health, float x, float y, float rot_deg, bool is_controllable ){
+GameObject::GameObject( string body_type, Tile tile, uint8_t start_health, float x, float y, float rot_deg, bool is_controllable ){
 	obj_name = "";
-	texture = new_tex;
+	texture = tile.texture;
+	tex_rect = tile.rect;
 	controllable = is_controllable;
 	//This is spawned by a level zone so convert the coords to bullet coords (world_scale)
 	spawn_x = x/80.0f;
@@ -106,11 +107,18 @@ void GameObject::init(){
 	//setup motion clamping so no tunneling occurs
 	//phys_body->setCcdMotionThreshold(1);
 	//phys_body->setCcdSweptSphereRadius(0.2f);
+    
+	if( controllable ){
+		phys_world->addRigidBody(phys_body, COL_PLAYER, playerCollidesWith);
+	} else {
+		phys_world->addRigidBody(phys_body, COL_OBJ, objCollidesWith);
+	}
 
-	phys_world->addRigidBody(phys_body);
-        
 	if(texture == NULL){
 		texture = loadTexture(obj_name, renderer);
+		int w, h;
+		SDL_QueryTexture(texture, NULL, NULL, &w, &h);
+		tex_rect = {0, 0, w, h};
 	}
 }
 
@@ -369,6 +377,7 @@ void GameObject::attack(btVector3 dir, int dmg){
 	pos_to.setOrigin(dir);
 
 	ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
+	cb.m_collisionFilterGroup = objCollidesWith;
 
 	phys_world->convexSweepTest(&sphere, pos_from, pos_to, cb);
 	if (cb.hasHit())
@@ -420,10 +429,10 @@ void GameObject::render_obj(int off_x, int off_y){
 	QuaternionToEulerXYZ(trans.getRotation(),rot_vec);
 	float rot = (rot_vec.getZ() / M_PI) * 180.0f;
 
-	dest.x = off_x - 40 + trans.getOrigin().getX() * 80;
-	dest.y = off_y - 40 + trans.getOrigin().getY() * 80;
-	dest.w = 80;
-	dest.h = 80;
+	dest.x = off_x - tex_rect.w/2 + trans.getOrigin().getX() * 80;
+	dest.y = off_y - tex_rect.h/2 + trans.getOrigin().getY() * 80;
+	dest.w = tex_rect.w;
+	dest.h = tex_rect.h;
 
-	SDL_RenderCopyEx(renderer, texture, NULL, &dest, rot, NULL, SDL_FLIP_NONE);
+	SDL_RenderCopyEx(renderer, texture, &tex_rect, &dest, rot, NULL, SDL_FLIP_NONE);
 }

@@ -7,10 +7,25 @@
 #include "sdl_h_func.h"
 #include <math.h> 
 #include "timer.h"
+#include "tile.h"
+
+#define BIT(x) (1<<(x))
+enum collisiontypes {
+    COL_NOTHING = 0, //<Collide with nothing
+    COL_PLAYER = BIT(0), //<Collide with player
+    COL_WALL = BIT(1), //<Collide with walls
+    COL_NPC = BIT(2), //<Collide with npcs
+	COL_OBJ = BIT(3) // Collide with objects 
+};
+
+static const int playerCollidesWith = COL_WALL | COL_OBJ;
+static const int wallCollidesWith = COL_PLAYER | COL_NPC | COL_OBJ;
+static const int objCollidesWith = COL_PLAYER | COL_WALL | COL_NPC | COL_OBJ;
 
 class GameObject {
 	btRigidBody* phys_body;
 	btCollisionShape* body_shape;
+	SDL_Rect tex_rect;
 
 	string obj_name;
 	SDL_Texture *texture;
@@ -30,7 +45,7 @@ class GameObject {
 	public:
 	GameObject();
 	GameObject( string body_type, string tile_set, uint8_t health, float x, float y, float rot, bool is_controllable = false );
-	GameObject( string body_type, SDL_Texture *texture, uint8_t health, float x, float y, float rot, bool is_controllable = false );
+	GameObject( string body_type, Tile tile, uint8_t health, float x, float y, float rot, bool is_controllable = false );
 	~GameObject();
 	void init();
 	void set_renderer(SDL_Renderer *new_renderer);

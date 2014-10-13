@@ -11,17 +11,11 @@
 
 #include "obj.h"
 #include <list>
-#include <btBulletDynamicsCommon.h> 
+#include <btBulletDynamicsCommon.h>
+
+#include "tile.h"
 
 using namespace std;
-
-struct Tile {
-	SDL_Texture * texture;
-	SDL_Rect rect;
-
-	//collition shapes for this tile. Everything is stored as polylines
-	vector<vector<SDL_Point>> coll;
-};
 
 class LevelZone {
 	vector<vector<vector<uint32_t>>> level_tiles;  //Layer, y, x
@@ -33,15 +27,20 @@ class LevelZone {
 	unsigned int zone_tile_w, zone_tile_h, zone_w, zone_h;
 	static unordered_map<string,pugi::xml_document> zones;
 	static unordered_map<string,SDL_Texture *> images;
+	vector<bool> layer_ani;
 	vector<SDL_Texture *> level_zone_layers;
 
 	void parse_collison_obj(pugi::xml_node node, int tile_id);
+	void parse_ani_frames(pugi::xml_node node, int tile_id, int first_id);
 	public:
 	LevelZone(string level_zone_file, SDL_Renderer *renderer);
+	SDL_Texture *get_layer(unsigned int i, SDL_Renderer *renderer);
 	vector<SDL_Texture *> get_layers(SDL_Renderer *renderer);
 	vector<vector<SDL_Point>> get_coll_vec();
 	SDL_Texture *get_coll_layer(SDL_Renderer *renderer);
+	void update_textures(SDL_Renderer *renderer);
 	void render_layers(SDL_Renderer *renderer, int off_x, int off_y);
+	void render_layer(unsigned int index, SDL_Renderer *renderer, int off_x, int off_y);
 	void del_images();
 	void del_layers();
 	list<GameObject*> *get_objs();
