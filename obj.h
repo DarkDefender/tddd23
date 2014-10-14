@@ -22,6 +22,7 @@ enum collisiontypes {
 static const int playerCollidesWith = COL_WALL | COL_OBJ;
 static const int wallCollidesWith = COL_PLAYER | COL_NPC | COL_OBJ;
 static const int objCollidesWith = COL_PLAYER | COL_WALL | COL_NPC | COL_OBJ;
+static const int npcCollidesWith = COL_PLAYER | COL_WALL | COL_OBJ;
 
 class GameObject {
 	btRigidBody* phys_body;
@@ -36,16 +37,18 @@ class GameObject {
 	btVector3 move_vec, old_move_vec, adj_move_vec, jump_vec;
 	float cur_move_speed, spawn_rot, spawn_x, spawn_y;
 
+	static GameObject* player_obj;
+
 	static unordered_map<string,btCollisionShape*> obj_coll_shape;
 	static btDiscreteDynamicsWorld* phys_world;
 	static SDL_Renderer *renderer;
-	bool godmode, inited, moving, jumping, controllable, dead;
+	bool godmode, inited, moving, jumping, controllable, dead, npc;
 	int health;
 	void clean_up();
 	void pre_init(string body_type);
 	public:
 	GameObject();
-	GameObject( string body_type, Tile tile, vector<Tile> *tiles_ptr, uint8_t health, float x, float y, float rot, bool is_controllable = false );
+	GameObject( string body_type, Tile tile, vector<Tile> *tiles_ptr, uint8_t health, float x, float y, float rot, bool is_controllable = false, bool npc = false );
 	~GameObject();
 	void init();
 	void set_renderer(SDL_Renderer *new_renderer);
@@ -65,11 +68,13 @@ class GameObject {
 	void attack(btVector3 dir, int dmg);
 	void apply_dmg(int dmg);
          
-        bool get_controllable();
+    bool get_controllable();
 	bool get_dead();
 
     int get_hp();
 	int get_max_hp();
+
+    void npc_think();
 
 	void QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler);
 

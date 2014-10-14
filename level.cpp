@@ -549,20 +549,24 @@ LevelZone::LevelZone(string level_zone_file, SDL_Renderer *renderer){
 		} else {
 			for(pugi::xml_node obj = node.first_child(); obj; obj = obj.next_sibling()){
 				pugi::xml_node prop = obj.child("properties");
-				bool contr = false;
+				bool contr = false, npc = false;
 				string body = "box";
 				if (prop){
 					for(pugi::xml_node pry = prop.first_child(); pry; pry = pry.next_sibling()){
-                                         	string prop_name( pry.attribute("name").value() );
+						string prop_name( pry.attribute("name").value() );
 						if( prop_name == "Controllable" ){
-                                                	contr = pry.attribute("value").as_bool();
+							contr = pry.attribute("value").as_bool();
 							body = "circle";
+						} else if( prop_name == "npc" ){
+							npc = pry.attribute("value").as_bool();
+							body = "circle";
+							contr = npc;
 						}
 					}
 				}
 
 				obj_list.push_back(new GameObject(body, tile_tex.at(obj.attribute("gid").as_int() - 1), &tile_tex, 10,
-							obj.attribute("x").as_float(), obj.attribute("y").as_float(), obj.attribute("rotation").as_float(), contr)); 
+							obj.attribute("x").as_float(), obj.attribute("y").as_float(), obj.attribute("rotation").as_float(), contr, npc)); 
 			}
 		}
 	}

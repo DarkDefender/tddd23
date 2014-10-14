@@ -14,13 +14,15 @@ using namespace std;
 unordered_map<string,btCollisionShape*> GameObject::obj_coll_shape;
 btDiscreteDynamicsWorld* GameObject::phys_world = NULL;
 SDL_Renderer* GameObject::renderer = NULL;
+GameObject* GameObject::player_obj = NULL;
 
 GameObject::GameObject(){
 	//Only used for static init and cleanup
 	inited = false;
 }
 
-GameObject::GameObject( string body_type, Tile new_tile, vector<Tile> *tiles_ptr, uint8_t start_health, float x, float y, float rot_deg, bool is_controllable ){
+GameObject::GameObject( string body_type, Tile new_tile, vector<Tile> *tiles_ptr, uint8_t start_health, float x, float y, float rot_deg, bool is_controllable, bool is_npc ){
+	npc = is_npc;
     tile = new_tile;
     tiles = tiles_ptr;
 	controllable = is_controllable;
@@ -98,7 +100,12 @@ void GameObject::init(){
 	//phys_body->setCcdSweptSphereRadius(0.2f);
     
 	if( controllable ){
-		phys_world->addRigidBody(phys_body, COL_PLAYER, playerCollidesWith);
+		if( npc ){
+			phys_world->addRigidBody(phys_body, COL_NPC, playerCollidesWith);
+		} else {
+			phys_world->addRigidBody(phys_body, COL_PLAYER, playerCollidesWith);
+			player_obj = this;
+		}
 	} else {
 		phys_world->addRigidBody(phys_body, COL_OBJ, objCollidesWith);
 	}
@@ -330,6 +337,10 @@ void GameObject::update(){
    		return;
 	}
 
+	if( npc ){
+		npc_think();
+	}
+
 	//Check if we need to adjust move_vec or object orientation because of gravity changes
 	btVector3 vec2 = btVector3(0,0,-1).cross(phys_world->getGravity());
 	float obj_adj_rot = btVector3(1,0,0).angle(vec2);
@@ -409,8 +420,8 @@ void GameObject::attack(btVector3 dir, int dmg){
 	phys_world->convexSweepTest(&sphere, pos_from, pos_to, cb);
 	if (cb.hasHit())
 	{
-		//Is this a non static object?
 		GameObject *obj = static_cast<GameObject*>(cb.m_hitCollisionObject->getUserPointer());
+		//Is this a non static object?
 		if(obj != NULL){
 			obj->apply_dmg(dmg);
 			if(!obj->get_controllable() || obj->get_dead()){
@@ -423,7 +434,7 @@ void GameObject::attack(btVector3 dir, int dmg){
 		shoot = { cb.m_hitPointWorld.getX() * 80, cb.m_hitPointWorld.getY() * 80 };
 		shoot_vec.push_back(shoot);
 	} else {
-		shoot = { pos_to.getOrigin().getX()*80, pos_to.getOrigin().getY()*80 };
+		shoot = { pos_to.getOrigin().getX() * 80, pos_to.getOrigin().getY() * 80 };
 		shoot_vec.push_back(shoot);
 	}
 }
@@ -451,6 +462,40 @@ int GameObject::get_hp(){
 
 int GameObject::get_max_hp(){
 	return 10;
+}
+
+void GameObject::npc_think(){
+	if(!player_obj){
+		return;
+	}
+
+	btTransform pos_to, pos_from;
+	btSphereShape sphere(0.1f);
+	phys_body->getMotionState()->getWorldTransform(pos_from);
+	//Reset rotation so that we only get the origin coords
+	pos_from.setRotation(btQuaternion(0,0,0));
+    player_obj->get_body()->getMotionState()->getWorldTransform(pos_to);
+	pos_to.setRotation(btQuaternion(0,0,0));
+
+	ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
+	cb.m_collisionFilterGroup = npcCollidesWith;
+
+	phys_world->convexSweepTest(&sphere, pos_from, pos_to, cb);
+	if (cb.hasHit())
+	{
+		GameObject *obj = static_cast<GameObject*>(cb.m_hitCollisionObject->getUserPointer());
+	    if(obj == player_obj){
+			moving = true;
+			move_timer.start();
+			old_move_vec = move_vec;
+			move_vec = (pos_to.getOrigin() - pos_from.getOrigin()).normalized();
+		}
+	} else if (moving) {
+		moving = false;
+		move_timer.stop();
+		old_move_vec = move_vec;
+		move_vec.setZero();
+	}
 }
 
 void GameObject::QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler)
