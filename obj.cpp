@@ -338,9 +338,9 @@ void GameObject::update(){
 		if( dot < 0 ){
 			obj_adj_rot = - obj_adj_rot;
 		}
-		cout << obj_adj_rot << endl;
 		btQuaternion quat;
 		quat.setEuler(0, 0, obj_adj_rot); //or quat.setEulerZYX depending on the ordering you want
+		//Make the phys body face "up"
 		phys_body->getWorldTransform().setRotation(quat);
 	}
 
