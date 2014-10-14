@@ -157,6 +157,8 @@ bool GameObject::can_jump(){
 	btVector3 nor_grav = phys_world->getGravity().normalized();
 	btSphereShape sphere(0.4f);
 	phys_body->getMotionState()->getWorldTransform(pos_from);
+	//Reset rotation so that we only get the origin coords
+	pos_from.setRotation(btQuaternion(0,0,0));
 	pos_to.setIdentity();
 	pos_to.setOrigin(0.15f * nor_grav + pos_from.getOrigin());
 
@@ -176,6 +178,8 @@ bool GameObject::can_jump(btVector3 &nor_vec){
 	btVector3 nor_grav = phys_world->getGravity().normalized();
 	btSphereShape sphere(0.4f);
 	phys_body->getMotionState()->getWorldTransform(pos_from);
+	//Reset rotation so that we only get the origin coords
+	pos_from.setRotation(btQuaternion(0,0,0));
 	pos_to.setIdentity();
 	pos_to.setOrigin(0.15f * nor_grav + pos_from.getOrigin());
 
@@ -195,6 +199,8 @@ bool GameObject::can_wall_jump(btVector3 &nor_vec){
 	btSphereShape sphere(0.4f);
 	btTransform pos_to, pos_from;
 	phys_body->getMotionState()->getWorldTransform(pos_from);
+	//Reset rotation so that we only get the origin coords
+	pos_from.setRotation(btQuaternion(0,0,0));
 	pos_to.setIdentity();
 	
 	//right wall
@@ -227,6 +233,8 @@ bool GameObject::can_jump_static(){
 	btSphereShape sphere(0.4f);
 	btTransform pos_to, pos_from;
 	phys_body->getMotionState()->getWorldTransform(pos_from);
+	//Reset rotation so that we only get the origin coords
+	pos_from.setRotation(btQuaternion(0,0,0));
 	pos_to.setIdentity();
 	pos_to.setOrigin(0.15f * phys_world->getGravity().normalized() + pos_from.getOrigin());
 
@@ -296,8 +304,44 @@ void GameObject::stop_jump(){
 }
 
 void GameObject::update(){
+
+	if(tile.animated){
+		if( !tile.ani_timer.isStarted() ){
+			tile.ani_timer.start();
+		} else {
+			uint32_t ticks = tile.ani_timer.getTicks();
+			uint32_t cur_index = tile.ani_index;
+			if( ticks > tile.ani_tile_time[tile.ani_index] ){
+				//(Re)start the timer
+				tile.ani_timer.start();
+				cur_index++;
+				if(cur_index >= tile.ani_tile_no.size()){
+					cur_index = 0;
+				}
+				tile.ani_index = cur_index;
+			}
+		}
+		tile.texture = tiles->at(tile.ani_tile_no[tile.ani_index] - 1).texture;
+		tile.rect = tiles->at(tile.ani_tile_no[tile.ani_index] - 1).rect;
+	}
+
 	if(!controllable || dead){
    		return;
+	}
+
+	//Check if we need to adjust move_vec or object orientation because of gravity changes
+	btVector3 vec2 = btVector3(0,0,-1).cross(phys_world->getGravity());
+	float obj_adj_rot = btVector3(1,0,0).angle(vec2);
+	if(obj_adj_rot > 0){
+		//we want to know the whole rotation around the z axis (not from 0,pi)
+		float dot = btVector3(0,1,0).dot(vec2);
+		if( dot < 0 ){
+			obj_adj_rot = - obj_adj_rot;
+		}
+		cout << obj_adj_rot << endl;
+		btQuaternion quat;
+		quat.setEuler(0, 0, obj_adj_rot); //or quat.setEulerZYX depending on the ordering you want
+		phys_body->getWorldTransform().setRotation(quat);
 	}
 
 	if(!moving && can_jump()){
@@ -312,9 +356,6 @@ void GameObject::update(){
 			move_timer.start();
 			cur_move_speed += 0.05f;
 		}
-
-		//Check if we need to adjust move_vec because of gravity changes
-		btVector3 vec2 = btVector3(0,0,-1).cross(phys_world->getGravity());
 
   		adj_move_vec = adj_move_vec.x() * vec2.normalized();
 		btVector3 nor_grav =  phys_world->getGravity().normalized();
@@ -344,31 +385,14 @@ void GameObject::update(){
 		jumping = false;
 		jump_timer.stop();
 	}
-	if(tile.animated){
-		if( !tile.ani_timer.isStarted() ){
-			tile.ani_timer.start();
-		} else {
-			uint32_t ticks = tile.ani_timer.getTicks();
-			uint32_t cur_index = tile.ani_index;
-			if( ticks > tile.ani_tile_time[tile.ani_index] ){
-				//(Re)start the timer
-				tile.ani_timer.start();
-				cur_index++;
-				if(cur_index >= tile.ani_tile_no.size()){
-					cur_index = 0;
-				}
-				tile.ani_index = cur_index;
-			}
-		}
-		tile.texture = tiles->at(tile.ani_tile_no[tile.ani_index] - 1).texture;
-		tile.rect = tiles->at(tile.ani_tile_no[tile.ani_index] - 1).rect;
-	}
 }
 
 void GameObject::attack(btVector3 dir, int dmg){
  	btTransform pos_to, pos_from;
 	btSphereShape sphere(0.1f);
 	phys_body->getMotionState()->getWorldTransform(pos_from);
+	//Reset rotation so that we only get the origin coords
+	pos_from.setRotation(btQuaternion(0,0,0));
 	pos_to.setIdentity();
 	pos_to.setOrigin(dir);
 
@@ -396,6 +420,8 @@ void GameObject::apply_dmg(int dmg){
 	health -= dmg;
 	if(health <= 0){
 		dead = true;
+		//Fall over if dead
+		phys_body->setAngularFactor(btVector3(0,0,1));
 	}
 }
 
