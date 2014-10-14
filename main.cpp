@@ -39,7 +39,6 @@ void cleanup(int exitcode){
 void change_lvl_ani(SDL_Renderer *renderer, list<Text_box*> text_object_list, Level *level, bool fade_in){
 	Timer fps_cap_timer, timer;
 	bool done = false;
-	float x = 1, y = 1;
     timer.start();
 
 	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
@@ -111,9 +110,16 @@ int main(int argc, char *argv[]){
 		cleanup(2);
 	}
 
-	//TODO use scaling
-    //SDL_RenderSetScale(renderer,1,1);
+	//Fullscreen
+	SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
 
+    int w,h;
+	SDL_GetWindowSize(window, &w, &h);
+	int s_w = w / WIDTH;
+	int s_h = h / HEIGHT;
+	//TODO use scaling
+    SDL_RenderSetScale(renderer,s_w,s_w);
+	
 	// Create test text objects
 	// TODO remeber to free this up later
 	Text_box *b1 = new Text_box(10,10,110,50,"../res/fonts/PROBE_10PX_TTF.ttf");
@@ -160,7 +166,7 @@ int main(int argc, char *argv[]){
 					{
 						case SDL_BUTTON_LEFT:
 							{
-								btVector3 vec = level->screen_to_game_coords(event.button.x, event.button.y);
+								btVector3 vec = level->screen_to_game_coords(event.button.x/s_w, event.button.y/s_w);
 								player->attack(vec , 10);
 								break;
 							}
