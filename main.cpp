@@ -129,7 +129,7 @@ int main(int argc, char *argv[]){
 	Text_box *b2 = new Text_box(10,40,100,50,"../res/fonts/Tewi-normal-11.psf");
 
 	b1->new_text("Hipp. Happ, hopp!");
-    b2->new_text("Hipp. Happ, popp!");
+    b2->new_text("Press enter to exit tutorial...");
 
 	list<Text_box*> text_list;
 	text_list.push_back(b1);
@@ -196,14 +196,15 @@ int main(int argc, char *argv[]){
 					}
 					switch (event.key.keysym.sym)
 					{
-						case SDLK_LEFT:  player->set_move_dir(left); break;
-						case SDLK_RIGHT: player->set_move_dir(right); break;
-						case SDLK_UP:    player->jump(); break;
+						case SDLK_a:  player->set_move_dir(left); break;
+						case SDLK_d: player->set_move_dir(right); break;
+						case SDLK_w:    player->jump(); break;
 						//case SDLK_DOWN:  f += 0.5f; fallRigidBody->setFriction(f); break;
 						//case SDLK_SPACE: f -= 0.5f; fallRigidBody->setFriction(f); break;
 						case SDLK_SPACE: level->toggle_rotate_world(); break;
 						case SDLK_RETURN:
 										 if(level->get_win_prop() == "button"){
+											 b2->new_text(" ");
 											change_lvl_ani(renderer, text_list, level, true);
 											level_list.pop_front();
 											delete level;
@@ -216,9 +217,9 @@ int main(int argc, char *argv[]){
  				case SDL_KEYUP:
 					switch (event.key.keysym.sym)
 					{
-						case SDLK_LEFT:  player->set_move_dir(-left); break;
-						case SDLK_RIGHT: player->set_move_dir(-right); break;
-						case SDLK_UP:    player->stop_jump(); break;
+						case SDLK_a:  player->set_move_dir(-left); break;
+						case SDLK_d: player->set_move_dir(-right); break;
+						case SDLK_w:    player->stop_jump(); break;
 						//case SDLK_SPACE: rota = !rota; break;
 					}
 					break;
@@ -239,6 +240,9 @@ int main(int argc, char *argv[]){
 
         //update physics
 		level->update(fps_cap_timer.delta_s());
+
+		//Get player hp
+		b1->new_text("HP: " + to_string(player->get_hp()) + "/" + to_string(player->get_max_hp()));
 
 	}
 

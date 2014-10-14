@@ -49,7 +49,8 @@ void GameObject::pre_init(string body_type){
 		if(body_type == "box"){
 			obj_coll_shape[body_type] = new btBoxShape(btVector3(0.5f,0.5f,0.5f));
 		} else {
-		obj_coll_shape[body_type] = new btSphereShape(0.5f);
+			obj_coll_shape[body_type] = new btCapsuleShape(0.25f, 0.5f);
+			//obj_coll_shape[body_type] = new btSphereShape(0.5f);
 		}
 	}
 	body_shape = obj_coll_shape[body_type];
@@ -155,12 +156,12 @@ class ClosestNotMeSweep : public btCollisionWorld::ClosestConvexResultCallback
 bool GameObject::can_jump(){
 	btTransform pos_to, pos_from;
 	btVector3 nor_grav = phys_world->getGravity().normalized();
-	btSphereShape sphere(0.4f);
+	btSphereShape sphere(0.1f);
 	phys_body->getMotionState()->getWorldTransform(pos_from);
 	//Reset rotation so that we only get the origin coords
 	pos_from.setRotation(btQuaternion(0,0,0));
 	pos_to.setIdentity();
-	pos_to.setOrigin(0.15f * nor_grav + pos_from.getOrigin());
+	pos_to.setOrigin(0.5f * nor_grav + pos_from.getOrigin());
 
 	ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
 
@@ -176,12 +177,12 @@ bool GameObject::can_jump(){
 bool GameObject::can_jump(btVector3 &nor_vec){
 	btTransform pos_to, pos_from;
 	btVector3 nor_grav = phys_world->getGravity().normalized();
-	btSphereShape sphere(0.4f);
+	btSphereShape sphere(0.1f);
 	phys_body->getMotionState()->getWorldTransform(pos_from);
 	//Reset rotation so that we only get the origin coords
 	pos_from.setRotation(btQuaternion(0,0,0));
 	pos_to.setIdentity();
-	pos_to.setOrigin(0.15f * nor_grav + pos_from.getOrigin());
+	pos_to.setOrigin(0.5f * nor_grav + pos_from.getOrigin());
 
 	ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
 
@@ -196,7 +197,7 @@ bool GameObject::can_jump(btVector3 &nor_vec){
 }
 
 bool GameObject::can_wall_jump(btVector3 &nor_vec){
-	btSphereShape sphere(0.4f);
+	btSphereShape sphere(0.15f);
 	btTransform pos_to, pos_from;
 	phys_body->getMotionState()->getWorldTransform(pos_from);
 	//Reset rotation so that we only get the origin coords
@@ -230,13 +231,13 @@ bool GameObject::can_wall_jump(btVector3 &nor_vec){
 }
 
 bool GameObject::can_jump_static(){
-	btSphereShape sphere(0.4f);
+	btSphereShape sphere(0.1f);
 	btTransform pos_to, pos_from;
 	phys_body->getMotionState()->getWorldTransform(pos_from);
 	//Reset rotation so that we only get the origin coords
 	pos_from.setRotation(btQuaternion(0,0,0));
 	pos_to.setIdentity();
-	pos_to.setOrigin(0.15f * phys_world->getGravity().normalized() + pos_from.getOrigin());
+	pos_to.setOrigin(0.5f * phys_world->getGravity().normalized() + pos_from.getOrigin());
 
 	btCollisionWorld::ClosestConvexResultCallback cb( pos_from.getOrigin(), pos_to.getOrigin() );
 	cb.m_collisionFilterMask = btBroadphaseProxy::StaticFilter;
@@ -393,8 +394,14 @@ void GameObject::attack(btVector3 dir, int dmg){
 	phys_body->getMotionState()->getWorldTransform(pos_from);
 	//Reset rotation so that we only get the origin coords
 	pos_from.setRotation(btQuaternion(0,0,0));
+
+    btVector3 extend_dir = 6*(dir - pos_from.getOrigin()).normalized();
+
 	pos_to.setIdentity();
-	pos_to.setOrigin(dir);
+	pos_to.setOrigin(extend_dir + pos_from.getOrigin());
+
+    SDL_Point shoot = {pos_from.getOrigin().getX()*80, pos_from.getOrigin().getY()*80};
+	shoot_vec.push_back(shoot);
 
 	ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
 	cb.m_collisionFilterGroup = objCollidesWith;
@@ -407,12 +414,17 @@ void GameObject::attack(btVector3 dir, int dmg){
 		if(obj != NULL){
 			obj->apply_dmg(dmg);
 			if(!obj->get_controllable() || obj->get_dead()){
-			float hit_force = 100.0f;
-			btVector3 force_dir = dir - pos_from.getOrigin();
-			btVector3 rel_pos = cb.m_hitPointWorld - obj->get_body()->getCenterOfMassPosition();
+				float hit_force = 100.0f;
+				btVector3 force_dir = dir - pos_from.getOrigin();
+				btVector3 rel_pos = cb.m_hitPointWorld - obj->get_body()->getCenterOfMassPosition();
 				obj->get_body()->applyImpulse(force_dir.normalized() * hit_force, rel_pos);
 			}
 		}
+		shoot = { cb.m_hitPointWorld.getX() * 80, cb.m_hitPointWorld.getY() * 80 };
+		shoot_vec.push_back(shoot);
+	} else {
+		shoot = { pos_to.getOrigin().getX()*80, pos_to.getOrigin().getY()*80 };
+		shoot_vec.push_back(shoot);
 	}
 }
 
@@ -431,6 +443,14 @@ bool GameObject::get_controllable(){
 
 bool GameObject::get_dead(){
 	return dead;
+}
+
+int GameObject::get_hp(){
+	return health;
+}
+
+int GameObject::get_max_hp(){
+	return 10;
 }
 
 void GameObject::QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler)
@@ -457,4 +477,9 @@ void GameObject::render_obj(int off_x, int off_y){
 	dest.h = tile.rect.h;
 
 	SDL_RenderCopyEx(renderer, tile.texture, &tile.rect, &dest, rot, NULL, SDL_FLIP_NONE);
+	SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+	for(int i = 0; i < shoot_vec.size(); i += 2){
+		SDL_RenderDrawLine(renderer, off_x + shoot_vec[i].x,  off_y + shoot_vec[i].y, off_x + shoot_vec[i+1].x,  off_y + shoot_vec[i+1].y);
+	}
+	shoot_vec.clear();
 }

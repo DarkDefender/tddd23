@@ -29,6 +29,7 @@ class GameObject {
 
     Tile tile;
     vector<Tile> *tiles;
+	vector<SDL_Point> shoot_vec;
 
 	Timer jump_timer, move_timer;	
 
@@ -66,6 +67,9 @@ class GameObject {
          
         bool get_controllable();
 	bool get_dead();
+
+    int get_hp();
+	int get_max_hp();
 
 	void QuaternionToEulerXYZ(const btQuaternion &quat,btVector3 &euler);
 
