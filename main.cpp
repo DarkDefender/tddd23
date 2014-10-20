@@ -202,6 +202,13 @@ int main(int argc, char *argv[]){
 						//case SDLK_DOWN:  f += 0.5f; fallRigidBody->setFriction(f); break;
 						//case SDLK_SPACE: f -= 0.5f; fallRigidBody->setFriction(f); break;
 						case SDLK_SPACE: level->toggle_rotate_world(); break;
+						case SDLK_r:
+										 change_lvl_ani(renderer, text_list, level, true);
+										 delete level;
+										 level = new Level(level_list.front(), renderer);
+										 player = level->get_player();
+										 change_lvl_ani(renderer, text_list, level, false);
+										 break;
 						case SDLK_RETURN:
 										 if(level->get_win_prop() == "button"){
 											 b2->new_text(" ");
@@ -212,6 +219,7 @@ int main(int argc, char *argv[]){
 											player = level->get_player();
 											change_lvl_ani(renderer, text_list, level, false);
 										 }
+										 break;
 					}
 					break;
  				case SDL_KEYUP:

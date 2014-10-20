@@ -16,13 +16,15 @@ enum collisiontypes {
     COL_PLAYER = BIT(0), //<Collide with player
     COL_WALL = BIT(1), //<Collide with walls
     COL_NPC = BIT(2), //<Collide with npcs
-	COL_OBJ = BIT(3) // Collide with objects 
+	COL_OBJ = BIT(3), // Collide with objects 
+	COL_DEAD = BIT(4) // Collide with dead stuff 
 };
 
 static const int playerCollidesWith = COL_WALL | COL_OBJ;
-static const int wallCollidesWith = COL_PLAYER | COL_NPC | COL_OBJ;
+static const int wallCollidesWith = COL_PLAYER | COL_NPC | COL_OBJ | COL_DEAD;
 static const int objCollidesWith = COL_PLAYER | COL_WALL | COL_NPC | COL_OBJ;
-static const int npcCollidesWith = COL_PLAYER | COL_WALL | COL_OBJ;
+static const int npcCollidesWith = COL_NPC | COL_WALL | COL_OBJ;
+static const int deadCollidesWith = COL_WALL;
 
 class GameObject {
 	btRigidBody* phys_body;
@@ -32,7 +34,7 @@ class GameObject {
     vector<Tile> *tiles;
 	vector<SDL_Point> shoot_vec;
 
-	Timer jump_timer, move_timer;	
+	Timer jump_timer, move_timer, hit_timer;	
 
 	btVector3 move_vec, old_move_vec, adj_move_vec, jump_vec;
 	float cur_move_speed, spawn_rot, spawn_x, spawn_y;
@@ -48,7 +50,7 @@ class GameObject {
 	void pre_init(string body_type);
 	public:
 	GameObject();
-	GameObject( string body_type, Tile tile, vector<Tile> *tiles_ptr, uint8_t health, float x, float y, float rot, bool is_controllable = false, bool npc = false );
+	GameObject( string body_type, Tile tile, vector<Tile> *tiles_ptr, uint8_t health, float x, float y, float rot, bool is_controllable = false, bool npc = false, bool god_mode = false );
 	~GameObject();
 	void init();
 	void set_renderer(SDL_Renderer *new_renderer);

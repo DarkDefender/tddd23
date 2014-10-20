@@ -21,7 +21,7 @@ GameObject::GameObject(){
 	inited = false;
 }
 
-GameObject::GameObject( string body_type, Tile new_tile, vector<Tile> *tiles_ptr, uint8_t start_health, float x, float y, float rot_deg, bool is_controllable, bool is_npc ){
+GameObject::GameObject( string body_type, Tile new_tile, vector<Tile> *tiles_ptr, uint8_t start_health, float x, float y, float rot_deg, bool is_controllable, bool is_npc, bool god ){
 	npc = is_npc;
     tile = new_tile;
     tiles = tiles_ptr;
@@ -32,6 +32,7 @@ GameObject::GameObject( string body_type, Tile new_tile, vector<Tile> *tiles_ptr
 	spawn_rot = (rot_deg/180.0f)*M_PI;
 	health = start_health;
 	dead = false;
+	godmode = god;
 	pre_init(body_type);
 }
 
@@ -99,14 +100,18 @@ void GameObject::init(){
 	//phys_body->setCcdMotionThreshold(1);
 	//phys_body->setCcdSweptSphereRadius(0.2f);
     
-	if( controllable ){
+	if( controllable && !dead ){
 		if( npc ){
-			phys_world->addRigidBody(phys_body, COL_NPC, playerCollidesWith);
+			phys_world->addRigidBody(phys_body, COL_NPC, npcCollidesWith);
 		} else {
 			phys_world->addRigidBody(phys_body, COL_PLAYER, playerCollidesWith);
 			player_obj = this;
 		}
+	} else if (dead){
+			phys_world->addRigidBody(phys_body, COL_DEAD, deadCollidesWith);
 	} else {
+		//Can't kill objects... For now...
+		godmode = true;
 		phys_world->addRigidBody(phys_body, COL_OBJ, objCollidesWith);
 	}
 }
@@ -212,7 +217,7 @@ bool GameObject::can_wall_jump(btVector3 &nor_vec){
 	pos_to.setIdentity();
 	
 	//right wall
-	pos_to.setOrigin(0.15f * phys_world->getGravity().cross(btVector3(0,0,1)).normalized() + pos_from.getOrigin());
+	pos_to.setOrigin(0.20f * phys_world->getGravity().cross(btVector3(0,0,1)).normalized() + pos_from.getOrigin());
 
 	ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
 
@@ -224,7 +229,7 @@ bool GameObject::can_wall_jump(btVector3 &nor_vec){
 		return true;
 	} 
 	//left wall
-	pos_to.setOrigin(0.15f * phys_world->getGravity().cross(btVector3(0,0,-1)).normalized() + pos_from.getOrigin());
+	pos_to.setOrigin(0.20f * phys_world->getGravity().cross(btVector3(0,0,-1)).normalized() + pos_from.getOrigin());
 
 	ClosestNotMeSweep cb2( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
 
@@ -313,7 +318,7 @@ void GameObject::stop_jump(){
 
 void GameObject::update(){
 
-	if(tile.animated){
+	if(tile.animated && hit_timer.isStarted() ){
 		if( !tile.ani_timer.isStarted() ){
 			tile.ani_timer.start();
 		} else {
@@ -335,6 +340,11 @@ void GameObject::update(){
 
 	if(!controllable || dead){
    		return;
+	}
+
+    if( hit_timer.delta_s() > 1 ){
+		godmode = false;
+		hit_timer.stop();
 	}
 
 	if( npc ){
@@ -369,7 +379,10 @@ void GameObject::update(){
 			cur_move_speed += 0.05f;
 		}
 
-  		adj_move_vec = adj_move_vec.x() * vec2.normalized();
+		//NPC know where they want to go (left/right) in the game world
+		if(!npc){
+			adj_move_vec = adj_move_vec.x() * vec2.normalized();
+		}
 		btVector3 nor_grav =  phys_world->getGravity().normalized();
 
         btVector3 grav_vec =  phys_body->getLinearVelocity().dot(nor_grav) * nor_grav;
@@ -440,9 +453,28 @@ void GameObject::attack(btVector3 dir, int dmg){
 }
 
 void GameObject::apply_dmg(int dmg){
+	if(godmode){
+		return;
+	}
 	health -= dmg;
+	if( !npc ){
+		//have some revovery time after a hit
+		godmode = true;
+		hit_timer.start();
+	}
 	if(health <= 0){
 		dead = true;
+        //Switch collision group to dead (need to init a new phys body)
+		btTransform trans;
+        phys_body->getMotionState()->getWorldTransform(trans);
+        spawn_x = trans.getOrigin().getX();
+		spawn_y = trans.getOrigin().getY();
+		btVector3 rot_vec, velo_vec;
+		QuaternionToEulerXYZ(trans.getRotation(),rot_vec);
+		spawn_rot = rot_vec.getZ();
+		velo_vec = phys_body->getLinearVelocity();
+		init();
+		phys_body->setLinearVelocity(velo_vec);
 		//Fall over if dead
 		phys_body->setAngularFactor(btVector3(0,0,1));
 	}
@@ -478,23 +510,40 @@ void GameObject::npc_think(){
 	pos_to.setRotation(btQuaternion(0,0,0));
 
 	ClosestNotMeSweep cb( phys_body, pos_from.getOrigin(), pos_to.getOrigin() );
-	cb.m_collisionFilterGroup = npcCollidesWith;
+	cb.m_collisionFilterGroup = playerCollidesWith;
+	cb.m_collisionFilterMask = COL_PLAYER | COL_WALL | COL_OBJ;
+
+    btVector3 move_dir = pos_to.getOrigin() - pos_from.getOrigin();
 
 	phys_world->convexSweepTest(&sphere, pos_from, pos_to, cb);
 	if (cb.hasHit())
 	{
 		GameObject *obj = static_cast<GameObject*>(cb.m_hitCollisionObject->getUserPointer());
-	    if(obj == player_obj){
-			moving = true;
-			move_timer.start();
+		if(obj == player_obj ){
+			if( move_dir.length() > 0.7 ){
+				moving = true;
+				move_timer.start();
+				old_move_vec = move_vec;
+				btVector3 dir_norm = (move_dir).normalized();
+				move_vec = dir_norm;
+				if(dir_norm.dot( phys_world->getGravity().normalized() ) < -0.5){
+					jump();
+				}
+			} else {
+				moving = false;
+				move_timer.stop();
+				old_move_vec = move_vec;
+				move_vec.setZero();
+			}
+			if( !obj->get_dead() && move_dir.length() < 0.9 ){
+				obj->apply_dmg(1);	
+			}
+		} else {
+			moving = false;
+			move_timer.stop();
 			old_move_vec = move_vec;
-			move_vec = (pos_to.getOrigin() - pos_from.getOrigin()).normalized();
+			move_vec.setZero();
 		}
-	} else if (moving) {
-		moving = false;
-		move_timer.stop();
-		old_move_vec = move_vec;
-		move_vec.setZero();
 	}
 }
 
