@@ -345,6 +345,8 @@ void GameObject::update(){
     if( hit_timer.delta_s() > 1 ){
 		godmode = false;
 		hit_timer.stop();
+ 		tile.texture = tiles->at(tile.ani_tile_no[0] - 1).texture;
+		tile.rect = tiles->at(tile.ani_tile_no[0] - 1).rect;  
 	}
 
 	if( npc ){
@@ -484,6 +486,10 @@ bool GameObject::get_controllable(){
  	return controllable;
 }
 
+bool GameObject::get_npc(){
+	return npc;
+}
+
 bool GameObject::get_dead(){
 	return dead;
 }
@@ -494,6 +500,11 @@ int GameObject::get_hp(){
 
 int GameObject::get_max_hp(){
 	return 10;
+}
+
+void GameObject::apply_spawn_offset(int x, int y){
+	spawn_x += x/80.0f;
+	spawn_y += y/80.0f;
 }
 
 void GameObject::npc_think(){
@@ -524,7 +535,7 @@ void GameObject::npc_think(){
 				moving = true;
 				move_timer.start();
 				old_move_vec = move_vec;
-				btVector3 dir_norm = (move_dir).normalized();
+				btVector3 dir_norm = move_dir.normalized();
 				move_vec = dir_norm;
 				if(dir_norm.dot( phys_world->getGravity().normalized() ) < -0.5){
 					jump();
@@ -535,8 +546,8 @@ void GameObject::npc_think(){
 				old_move_vec = move_vec;
 				move_vec.setZero();
 			}
-			if( !obj->get_dead() && move_dir.length() < 0.9 ){
-				obj->apply_dmg(1);	
+			if( !obj->get_dead() && move_dir.length() < 0.7 ){
+				attack(pos_to.getOrigin() ,1);	
 			}
 		} else {
 			moving = false;

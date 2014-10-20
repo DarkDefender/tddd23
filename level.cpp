@@ -192,6 +192,12 @@ void Level::get_lvl_objs(){
 				continue;
 			}
 			list<GameObject*> *zone_objs = l_zone_tiles[i][q]->get_objs();
+
+            //Add offset to objects
+			for (auto it = zone_objs->begin(); it != zone_objs->end(); it++){
+				(*it)->apply_spawn_offset(q * tile_h * 10, i * tile_w * 10 ); 
+			}
+
 			obj_list.splice(obj_list.end(), *zone_objs);
 			zone_objs->clear();
 		}
@@ -200,7 +206,7 @@ void Level::get_lvl_objs(){
 	for (auto it = obj_list.begin(); it != obj_list.end(); it++){
 		(*it)->init();
 		
-		if( (*it)->get_controllable() ){
+		if( (*it)->get_controllable() && !(*it)->get_npc() ){
                 	focus_obj = *it;
 		}
 	}

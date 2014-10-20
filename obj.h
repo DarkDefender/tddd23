@@ -71,10 +71,13 @@ class GameObject {
 	void apply_dmg(int dmg);
          
     bool get_controllable();
+	bool get_npc();
 	bool get_dead();
 
     int get_hp();
 	int get_max_hp();
+
+	void apply_spawn_offset(int x, int y);
 
     void npc_think();
 
